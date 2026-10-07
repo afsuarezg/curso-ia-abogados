@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Minimizar la función de pérdida — ejemplo interactivo</title>
+<style>
+  :root { --verde:#18453B; --verde-claro:#e8f0ee; --azul:#1f6fb2; --rojo:#c0392b; --ambar:#e0a800; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; color:#222; background:#f6f8f7; }
+  header { background:var(--verde); color:#fff; padding:14px 24px; }
+  header h1 { margin:0; font-size:1.5rem; font-weight:600; }
+  header p { margin:4px 0 0; opacity:.85; }
+  main { display:flex; flex-wrap:wrap; gap:20px; padding:20px; max-width:1350px; margin:auto; }
+  .col { flex:1 1 560px; display:flex; flex-direction:column; gap:14px; min-width:0; }
+  .tarjeta { background:#fff; border-radius:10px; padding:14px 16px; box-shadow:0 1px 4px rgba(0,0,0,.1); }
+  .tarjeta h2 { margin:0 0 8px; font-size:1rem; color:var(--verde); }
+  .pista { font-size:.85rem; color:#555; margin:6px 0 0; line-height:1.4; }
+  label { display:flex; justify-content:space-between; font-weight:600; margin-top:8px; font-size:.92rem; }
+  label span.valor { color:var(--verde); font-variant-numeric:tabular-nums; }
+  input[type=range] { width:100%; accent-color:var(--verde); }
+  select { padding:7px; font-size:.9rem; border:1px solid #ccc; border-radius:6px; }
+  button { border:1px solid var(--verde); background:#fff; color:var(--verde); padding:8px 12px; border-radius:6px; font-size:.9rem; cursor:pointer; }
+  button:hover:not(:disabled) { background:var(--verde); color:#fff; }
+  button.principal { background:var(--verde); color:#fff; }
+  button:disabled { opacity:.4; cursor:default; }
+  .fila { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:10px; }
+  canvas#mapa { width:100%; display:block; border:1px solid #ddd; border-radius:6px; cursor:crosshair; }
+  .mensaje { background:#fff6e0; border-left:4px solid var(--ambar); padding:9px 12px; border-radius:0 8px 8px 0; margin-top:10px; font-size:.92rem; line-height:1.45; }
+  .mensaje.ok { background:#e3f4e8; border-color:#2e8b57; }
+  .mensaje.mal { background:#fdecea; border-color:var(--rojo); }
+  .metricas { display:flex; gap:8px; flex-wrap:wrap; }
+  .metrica { flex:1 1 100px; text-align:center; padding:8px; border-radius:8px; background:var(--verde-claro); }
+  .metrica .num { font-size:1.35rem; font-weight:700; font-variant-numeric:tabular-nums; }
+  .metrica .txt { font-size:.74rem; color:#555; }
+  .formula { background:var(--verde-claro); border-radius:8px; padding:10px 12px; margin-top:8px; font-family:"Cambria Math",Georgia,serif; font-size:1rem; line-height:1.7; font-variant-numeric:tabular-nums; }
+  .leyenda { display:flex; flex-wrap:wrap; gap:4px 14px; font-size:.82rem; margin-top:6px; color:#444; }
+  .leyenda i { display:inline-block; width:11px; height:11px; border-radius:50%; margin-right:5px; vertical-align:middle; }
+  svg text { font-family:inherit; }
+  .nota { border-left:4px solid var(--ambar); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Minimizar la función de pérdida, paso a paso</h1>
+  <p>Regresión lineal (educación y salario): cómo se encuentran el intercepto y la pendiente con menor error.</p>
+</header>
+<main>
+  <div class="col">
+    <div class="tarjeta">
+      <h2>El mapa de la pérdida: cada punto es una recta posible</h2>
+      <canvas id="mapa" width="600" height="440"></canvas>
+      <div class="leyenda">
+        <span><i style="background:#18453B"></i>pérdida baja</span><span><i style="background:#cfe0da"></i>pérdida alta</span>
+        <span><i style="background:#c0392b"></i>posición actual</span><span>★ mínimo exacto (mínimos cuadrados)</span><span>○ punto de partida</span>
+      </div>
+      <div class="pista">Cada punto del mapa es una recta (un intercepto y una pendiente). Las líneas finas unen rectas con la misma pérdida. <b>Haga clic en el mapa</b> para elegir otro punto de partida.</div>
+      <div class="mensaje" id="mensaje"></div>
+      <div class="fila">
+        <button class="principal" id="jugar">▶ Entrenar</button>
+        <button id="paso">Un paso</button>
+        <button id="reiniciar">Reiniciar</button>
+        <label style="margin:0;font-weight:400;gap:6px;align-items:center">Velocidad
+          <select id="vel"><option value="8">Lenta</option><option value="40" selected>Normal</option><option value="200">Rápida</option></select></label>
+      </div>
+    </div>
+    <div class="tarjeta">
+      <h2>Tamaño del paso (tasa de aprendizaje, η)</h2>
+      <label>η <span class="valor" id="vlr"></span></label>
+      <input type="range" id="lr" min="-3" max="-1.1" step="0.01" value="-1.4">
+      <div class="fila" style="margin-top:6px">
+        <button id="e1">η pequeña: lento</button><button id="e2">η adecuada</button><button id="e3">η demasiado grande: no converge</button>
+      </div>
+      <div class="pista">Si el paso es muy pequeño, el avance es lento. Si es muy grande, la búsqueda salta de un lado a otro del valle y la pérdida puede empeorar.</div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="tarjeta">
+      <h2>La recta que se va ajustando</h2>
+      <svg id="svg" viewBox="0 0 600 380" width="100%"></svg>
+      <div class="leyenda"><span><i style="background:#18453B"></i>datos observados</span><span><i style="background:var(--rojo)"></i>error (predicho − observado)</span><span>líneas tenues: rectas anteriores</span></div>
+    </div>
+    <div class="tarjeta">
+      <h2>Cómo baja la pérdida</h2>
+      <div class="metricas">
+        <div class="metrica"><div class="num" id="mIter">0</div><div class="txt">iteración</div></div>
+        <div class="metrica"><div class="num" id="mA">–</div><div class="txt">intercepto</div></div>
+        <div class="metrica"><div class="num" id="mB">–</div><div class="txt">pendiente</div></div>
+        <div class="metrica"><div class="num" id="mMse">–</div><div class="txt">pérdida (MSE)</div></div>
+      </div>
+      <svg id="svgPerdida" viewBox="0 0 600 200" width="100%" style="margin-top:8px"></svg>
+      <div class="pista">Eje vertical en escala logarítmica. El mínimo exacto es <b id="mseOpt"></b>.</div>
+    </div>
+    <div class="tarjeta">
+      <h2>Qué calcula cada paso</h2>
+      <div class="formula" id="formula"></div>
+      <div class="pista">El <b>gradiente</b> indica en qué dirección sube más rápido la pérdida. El algoritmo se mueve en la dirección contraria, un paso de tamaño η × gradiente, y repite hasta que el gradiente es casi cero: allí ya no se puede bajar más.</div>
+    </div>
+    <div class="tarjeta nota">
+      <h2>¿Qué observar?</h2>
+      <ul style="margin:0; padding-left:20px; line-height:1.55">
+        <li>En el mapa, el camino <b>baja por el valle</b> hasta el mínimo; en la gráfica de la izquierda, la recta se acerca poco a poco a los puntos.</li>
+        <li>La pérdida baja rápido al comienzo y luego lento: cerca del mínimo la pendiente del terreno es casi plana.</li>
+        <li>Con una η muy grande, el camino zigzaguea y la pérdida <b>crece</b>.</li>
+        <li>Al final llega a los mismos valores que la fórmula exacta de mínimos cuadrados (★). Con modelos grandes, como las redes neuronales, no hay fórmula exacta y se usa este mismo método.</li>
+      </ul>
+    </div>
+  </div>
+</main>
+
+<script>
+// ---- Datos (la tabla de la presentación: años de educación y salario real) ----
+const D = [[1,10],[3,13],[3,15],[4,20],[7,33],[2,17],[4,20],[2,18],[6,38],[5,25]], n = D.length;
+let sx = 0, sy = 0, sxx = 0, sxy = 0, syy = 0;
+for (const [x, y] of D) { sx += x; sy += y; sxx += x * x; sxy += x * y; syy += y * y; }
+const mx = sx / n, my = sy / n, mxx = sxx / n, mxy = sxy / n, myy = syy / n;
+// Pérdida (error cuadrático medio) y su gradiente, en forma cerrada
+const mse = (a, b) => a * a + 2 * a * b * mx + b * b * mxx - 2 * a * my - 2 * b * mxy + myy;
+const grad = (a, b) => [2 * (a + b * mx - my), 2 * (a * mx + b * mxx - mxy)];
+const bOpt = (mxy - mx * my) / (mxx - mx * mx), aOpt = my - bOpt * mx, mseOpt = mse(aOpt, bOpt);
+
+const $ = id => document.getElementById(id);
+const fmt = (v, d = 2) => (Math.round(v * 10 ** d) / 10 ** d).toLocaleString('es-CO', { minimumFractionDigits: d, maximumFractionDigits: d });
+const NS = 'http://www.w3.org/2000/svg';
+function el(tag, attrs, parent, texto) { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); if (texto !== undefined) e.textContent = texto; return e; }
+
+// ---- Estado ----
+const INICIO = { a: -10, b: 9 };
+let est = { a: INICIO.a, b: INICIO.b, iter: 0, hist: [], estado: 'listo' };   // estado: listo | corriendo | pausa | convergio | diverge
+let inicio = { ...INICIO }, corriendo = false, ultimo = 0, acum = 0;
+const eta = () => Math.pow(10, +$('lr').value);
+
+function reiniciar() {
+  corriendo = false; $('jugar').textContent = '▶ Entrenar';
+  est = { a: inicio.a, b: inicio.b, iter: 0, hist: [{ a: inicio.a, b: inicio.b, p: mse(inicio.a, inicio.b) }], estado: 'listo' };
+  dibujar();
+}
+function paso() {
+  if (est.estado === 'convergio' || est.estado === 'diverge') return;
+  const [ga, gb] = grad(est.a, est.b), h = eta();
+  est.a -= h * ga; est.b -= h * gb; est.iter++;
+  const p = mse(est.a, est.b); est.hist.push({ a: est.a, b: est.b, p });
+  const [na, nb] = grad(est.a, est.b), norma = Math.hypot(na, nb);
+  if (!isFinite(p) || p > 1e8) { est.estado = 'diverge'; corriendo = false; }
+  else if (norma < 0.02) { est.estado = 'convergio'; corriendo = false; }
+  else if (est.estado === 'listo') est.estado = corriendo ? 'corriendo' : 'pausa';
+}
+
+// ---- Mapa de la pérdida ----
+const cv = $('mapa'), c = cv.getContext('2d'), W = cv.width, H = cv.height, ML = 50, MR = 10, MT = 10, MB = 38, PW = W - ML - MR, PH = H - MT - MB;
+const A0 = -15, A1 = 25, B0 = -1, B1 = 11;
+const px = a => ML + (a - A0) / (A1 - A0) * PW, py = b => MT + PH - (b - B0) / (B1 - B0) * PH;
+const ia = x => A0 + (x - ML) / PW * (A1 - A0), ib = y => B0 + (MT + PH - y) / PH * (B1 - B0);
+const mapaCalor = (() => {
+  const o = document.createElement('canvas'); o.width = PW; o.height = PH; const oc = o.getContext('2d'), im = oc.createImageData(PW, PH);
+  const v0 = Math.log10(mseOpt), v1 = v0 + 3.1, nivel = new Float32Array(PW * PH);
+  const col = t => { const s = [[24,69,59],[95,150,132],[207,224,218]], k = t < .5 ? 0 : 1, u = t < .5 ? t * 2 : (t - .5) * 2; return s[k].map((x, i) => x + (s[k + 1][i] - x) * u); };
+  for (let j = 0; j < PH; j++) for (let i = 0; i < PW; i++) {
+    const v = Math.log10(mse(ia(ML + i), ib(MT + j))); nivel[j * PW + i] = v;
+    const t = Math.max(0, Math.min(1, (v - v0) / (v1 - v0))), [r, g, b] = col(Math.pow(t, 0.8)), k = 4 * (j * PW + i);
+    im.data[k] = r; im.data[k + 1] = g; im.data[k + 2] = b; im.data[k + 3] = 255;
+  }
+  // Curvas de nivel: donde cambia la banda de pérdida
+  const paso = 0.2;
+  for (let j = 0; j < PH - 1; j++) for (let i = 0; i < PW - 1; i++) {
+    const k0 = Math.floor(nivel[j * PW + i] / paso);
+    if (k0 !== Math.floor(nivel[j * PW + i + 1] / paso) || k0 !== Math.floor(nivel[(j + 1) * PW + i] / paso)) { const k = 4 * (j * PW + i); im.data[k] *= .72; im.data[k + 1] *= .72; im.data[k + 2] *= .72; }
+  }
+  oc.putImageData(im, 0, 0); return o;
+})();
+
+function flecha(x1, y1, x2, y2, color, dash) {
+  c.strokeStyle = color; c.fillStyle = color; c.lineWidth = 2.2; c.setLineDash(dash || []); c.beginPath(); c.moveTo(x1, y1); c.lineTo(x2, y2); c.stroke(); c.setLineDash([]);
+  const ang = Math.atan2(y2 - y1, x2 - x1); c.beginPath(); c.moveTo(x2, y2); c.lineTo(x2 - 9 * Math.cos(ang - .4), y2 - 9 * Math.sin(ang - .4)); c.lineTo(x2 - 9 * Math.cos(ang + .4), y2 - 9 * Math.sin(ang + .4)); c.closePath(); c.fill();
+}
+function dibujarMapa() {
+  c.clearRect(0, 0, W, H); c.fillStyle = '#fff'; c.fillRect(0, 0, W, H); c.drawImage(mapaCalor, ML, MT);
+  c.strokeStyle = '#555'; c.lineWidth = 1; c.strokeRect(ML, MT, PW, PH); c.fillStyle = '#333'; c.font = '12px sans-serif';
+  c.textAlign = 'center'; for (let a = -10; a <= 20; a += 10) { c.beginPath(); c.moveTo(px(a), MT + PH); c.lineTo(px(a), MT + PH + 5); c.stroke(); c.fillText(a, px(a), MT + PH + 18); }
+  c.fillText('Intercepto (a)', ML + PW / 2, H - 5);
+  c.textAlign = 'right'; for (let b = 0; b <= 10; b += 2) { c.beginPath(); c.moveTo(ML - 5, py(b)); c.lineTo(ML, py(b)); c.stroke(); c.fillText(b, ML - 8, py(b) + 4); }
+  c.save(); c.translate(13, MT + PH / 2); c.rotate(-Math.PI / 2); c.textAlign = 'center'; c.fillText('Pendiente (b)', 0, 0); c.restore(); c.textAlign = 'left';
+  c.save(); c.beginPath(); c.rect(ML, MT, PW, PH); c.clip();
+  // Camino recorrido
+  const h = est.hist;
+  c.lineJoin = 'round';
+  c.strokeStyle = 'rgba(255,255,255,.9)'; c.lineWidth = 4.5; c.beginPath(); h.forEach((q, i) => i ? c.lineTo(px(q.a), py(q.b)) : c.moveTo(px(q.a), py(q.b))); c.stroke();
+  c.strokeStyle = '#c0392b'; c.lineWidth = 2; c.beginPath(); h.forEach((q, i) => i ? c.lineTo(px(q.a), py(q.b)) : c.moveTo(px(q.a), py(q.b))); c.stroke();
+  if (h.length <= 120) h.forEach(q => { c.beginPath(); c.arc(px(q.a), py(q.b), 2.6, 0, 7); c.fillStyle = '#c0392b'; c.fill(); });
+  // Próximo paso (si todavía se puede avanzar)
+  if (est.estado !== 'convergio' && est.estado !== 'diverge') {
+    const [ga, gb] = grad(est.a, est.b), t = eta(), na = est.a - t * ga, nb = est.b - t * gb;
+    if (isFinite(na) && Math.hypot(px(na) - px(est.a), py(nb) - py(est.b)) > 3) flecha(px(est.a), py(est.b), px(na), py(nb), '#000', [5, 4]);
+  }
+  c.restore();
+  // Mínimo exacto (estrella), punto de partida y posición actual
+  c.fillStyle = '#fff'; c.strokeStyle = '#000'; c.lineWidth = 1.5; c.beginPath();
+  for (let k = 0; k < 10; k++) { const r = k % 2 ? 5 : 12, an = -Math.PI / 2 + k * Math.PI / 5; c.lineTo(px(aOpt) + r * Math.cos(an), py(bOpt) + r * Math.sin(an)); } c.closePath(); c.fill(); c.stroke();
+  c.beginPath(); c.arc(px(inicio.a), py(inicio.b), 7, 0, 7); c.fillStyle = '#fff'; c.fill(); c.strokeStyle = '#000'; c.lineWidth = 2; c.stroke();
+  if (px(est.a) > ML - 10 && px(est.a) < ML + PW + 10) { c.beginPath(); c.arc(px(est.a), py(est.b), 7, 0, 7); c.fillStyle = '#c0392b'; c.fill(); c.strokeStyle = '#fff'; c.lineWidth = 2; c.stroke(); }
+}
+
+// ---- La recta y los datos ----
+function dibujarRecta() {
+  const s = $('svg'); s.replaceChildren(); const w = 600, h = 380, m = { l: 48, r: 14, t: 12, b: 42 }, X = x => m.l + x / 10 * (w - m.l - m.r), Y = y => h - m.b - y / 80 * (h - m.t - m.b);
+  el('rect', { x: m.l, y: m.t, width: w - m.l - m.r, height: h - m.t - m.b, fill: '#fcfdfc', stroke: '#ddd' }, s);
+  for (let x = 0; x <= 10; x++) { el('line', { x1: X(x), x2: X(x), y1: Y(0), y2: Y(80), stroke: '#eee' }, s); el('text', { x: X(x), y: h - m.b + 16, 'text-anchor': 'middle', 'font-size': 11, fill: '#666' }, s, x); }
+  for (let y = 0; y <= 80; y += 10) { el('line', { x1: X(0), x2: X(10), y1: Y(y), y2: Y(y), stroke: '#eee' }, s); el('text', { x: m.l - 6, y: Y(y) + 4, 'text-anchor': 'end', 'font-size': 11, fill: '#666' }, s, y); }
+  el('text', { x: (X(0) + X(10)) / 2, y: h - 6, 'text-anchor': 'middle', 'font-size': 12, 'font-weight': 600 }, s, 'Años de educación');
+  el('text', { x: 14, y: (Y(0) + Y(80)) / 2, 'text-anchor': 'middle', 'font-size': 12, 'font-weight': 600, transform: `rotate(-90 14 ${(Y(0) + Y(80)) / 2})` }, s, 'Salario real');
+  const id = 'rec'; el('rect', { x: m.l, y: m.t, width: w - m.l - m.r, height: h - m.t - m.b }, el('clipPath', { id }, s));
+  const g = el('g', { 'clip-path': `url(#${id})` }, s), hs = est.hist, N = hs.length;
+  // Rectas anteriores, cada vez más tenues
+  const previas = []; if (N > 2) for (let k = 0; k < 12; k++) { const i = Math.round(k * (N - 2) / 12); if (!previas.includes(i)) previas.push(i); }
+  previas.forEach((i, k) => { const q = hs[i]; el('line', { x1: X(0), y1: Y(q.a), x2: X(10), y2: Y(q.a + 10 * q.b), stroke: '#18453B', 'stroke-width': 1.5, opacity: .08 + .22 * k / previas.length }, g); });
+  for (const [x, y] of D) { const yp = est.a + est.b * x; el('line', { x1: X(x), y1: Y(y), x2: X(x), y2: Y(yp), stroke: '#c0392b', 'stroke-width': 2.2, opacity: .75 }, g); }
+  el('line', { x1: X(0), y1: Y(est.a), x2: X(10), y2: Y(est.a + 10 * est.b), stroke: '#18453B', 'stroke-width': 3.2 }, g);
+  for (const [x, y] of D) el('circle', { cx: X(x), cy: Y(y), r: 6, fill: '#18453B', stroke: '#fff', 'stroke-width': 1.6 }, g);
+}
+
+// ---- Curva de pérdida (escala logarítmica) ----
+function dibujarPerdida() {
+  const s = $('svgPerdida'); s.replaceChildren(); const w = 600, h = 200, m = { l: 52, r: 12, t: 10, b: 28 };
+  el('rect', { x: m.l, y: m.t, width: w - m.l - m.r, height: h - m.t - m.b, fill: '#fcfdfc', stroke: '#ddd' }, s);
+  const hs = est.hist, vals = hs.map(q => Math.log10(Math.max(q.p, 1e-9))), lo = Math.floor(Math.log10(mseOpt)), hi = Math.max(Math.ceil(Math.max(...vals)), lo + 1), N = Math.max(40, hs.length - 1);
+  const X = i => m.l + i / N * (w - m.l - m.r), Y = v => m.t + (hi - v) / (hi - lo) * (h - m.t - m.b);
+  for (let v = lo; v <= hi; v++) { el('line', { x1: m.l, x2: w - m.r, y1: Y(v), y2: Y(v), stroke: '#eee' }, s); el('text', { x: m.l - 6, y: Y(v) + 4, 'text-anchor': 'end', 'font-size': 11, fill: '#666' }, s, Math.pow(10, v).toLocaleString('es-CO')); }
+  el('line', { x1: m.l, x2: w - m.r, y1: Y(Math.log10(mseOpt)), y2: Y(Math.log10(mseOpt)), stroke: '#2e8b57', 'stroke-dasharray': '5 4', 'stroke-width': 1.5 }, s);
+  if (hs.length > 1) el('path', { d: vals.map((v, i) => (i ? 'L' : 'M') + X(i) + ',' + Y(Math.min(hi, Math.max(lo - .3, v)))).join(''), fill: 'none', stroke: '#18453B', 'stroke-width': 2.5 }, s);
+  el('text', { x: (m.l + w - m.r) / 2, y: h - 6, 'text-anchor': 'middle', 'font-size': 11, fill: '#666' }, s, 'iteraciones →');
+}
+
+// ---- Números y explicación ----
+function informe() {
+  const p = mse(est.a, est.b), [ga, gb] = grad(est.a, est.b), h = eta();
+  $('vlr').textContent = fmt(h, 3); $('mIter').textContent = est.iter; $('mA').textContent = fmt(est.a); $('mB').textContent = fmt(est.b);
+  $('mMse').textContent = p > 1e6 ? p.toExponential(1).replace('.', ',') : fmt(p, 1); $('mseOpt').textContent = fmt(mseOpt, 2);
+  $('formula').innerHTML = `Gradiente: ∂MSE/∂a = ${fmt(ga)}, &nbsp; ∂MSE/∂b = ${fmt(gb)}<br>` +
+    `a nuevo = ${fmt(est.a)} − ${fmt(h, 3)} · (${fmt(ga)}) = <b>${fmt(est.a - h * ga)}</b><br>b nuevo = ${fmt(est.b)} − ${fmt(h, 3)} · (${fmt(gb)}) = <b>${fmt(est.b - h * gb)}</b>`;
+  const m = $('mensaje'); m.className = 'mensaje';
+  if (est.estado === 'convergio') { m.classList.add('ok'); m.innerHTML = `<b>¡Llegó al mínimo en ${est.iter} iteraciones!</b> La pérdida es ${fmt(p, 2)}, igual al mínimo exacto (${fmt(mseOpt, 2)}). El gradiente es casi cero: ya no se puede bajar más. El resultado coincide con la fórmula exacta: intercepto ${fmt(aOpt)} y pendiente ${fmt(bOpt)}.`; }
+  else if (est.estado === 'diverge') { m.classList.add('mal'); m.innerHTML = `<b>La pérdida creció en vez de bajar.</b> Con η = ${fmt(h, 3)}, cada paso se pasa del valle y rebota cada vez más lejos. Reduzca η y vuelva a intentarlo.`; }
+  else if (est.iter === 0) m.innerHTML = `<b>Punto de partida:</b> intercepto ${fmt(est.a)} y pendiente ${fmt(est.b)}. La recta queda lejos de los datos y la pérdida es alta (${fmt(p, 0)}). Presione <b>Entrenar</b> o <b>Un paso</b>.`;
+  else if (h > 0.056 && est.iter > 3) m.innerHTML = `<b>Iteración ${est.iter}:</b> con este η los pasos son demasiado grandes y la pérdida empieza a crecer.`;
+  else m.innerHTML = `<b>Iteración ${est.iter}:</b> se calcula el gradiente y se da un paso en la dirección contraria (flecha punteada). Pérdida: ${fmt(p, 1)}, a ${fmt(p - mseOpt, 1)} del mínimo.${h < 0.01 && est.iter > 60 ? ' Con una η pequeña el avance es lento.' : ''}`;
+  $('paso').disabled = $('jugar').disabled = est.estado === 'convergio' || est.estado === 'diverge';
+}
+function dibujar() { dibujarMapa(); dibujarRecta(); dibujarPerdida(); informe(); }
+
+// ---- Animación ----
+function ciclo(t) {
+  if (!corriendo) return;
+  acum += (t - ultimo) / 1000 * (+$('vel').value); ultimo = t; let k = 0;
+  while (acum >= 1 && k++ < 200 && corriendo) { paso(); acum -= 1; }
+  dibujar(); if (corriendo) requestAnimationFrame(ciclo);
+  else $('jugar').textContent = '▶ Entrenar';
+}
+$('jugar').addEventListener('click', () => { corriendo = !corriendo; $('jugar').textContent = corriendo ? '⏸ Pausar' : '▶ Entrenar'; if (corriendo) { if (est.estado === 'listo' || est.estado === 'pausa') est.estado = 'corriendo'; ultimo = performance.now(); acum = 1; requestAnimationFrame(ciclo); } else { if (est.estado === 'corriendo') est.estado = 'pausa'; dibujar(); } });
+$('paso').addEventListener('click', () => { corriendo = false; $('jugar').textContent = '▶ Entrenar'; paso(); if (est.estado === 'corriendo') est.estado = 'pausa'; dibujar(); });
+$('reiniciar').addEventListener('click', reiniciar);
+$('lr').addEventListener('input', () => { if (est.estado === 'diverge') reiniciar(); else dibujar(); });
+const poner = lr => { $('lr').value = Math.log10(lr); reiniciar(); };
+$('e1').addEventListener('click', () => poner(0.004)); $('e2').addEventListener('click', () => poner(0.04)); $('e3').addEventListener('click', () => poner(0.07));
+cv.addEventListener('click', ev => { const r = cv.getBoundingClientRect(), x = (ev.clientX - r.left) / r.width * W, y = (ev.clientY - r.top) / r.height * H;
+  if (x < ML || x > ML + PW || y < MT || y > MT + PH) return; inicio = { a: ia(x), b: ib(y) }; reiniciar(); });
+
+reiniciar();
+</script>
+</body>
+</html>
