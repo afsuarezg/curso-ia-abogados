@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Redes neuronales — ejemplo interactivo</title>
+<style>
+  :root { --verde:#18453B; --verde-claro:#e8f0ee; --azul:#1f6fb2; --naranja:#d35400; --rojo:#c0392b; --ambar:#e0a800; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; color:#222; background:#f6f8f7; }
+  header { background:var(--verde); color:#fff; padding:14px 24px; }
+  header h1 { margin:0; font-size:1.5rem; font-weight:600; }
+  header p { margin:4px 0 0; opacity:.85; }
+  nav { display:flex; gap:6px; padding:14px 20px 0; max-width:1350px; margin:auto; }
+  nav button { border:none; border-radius:8px 8px 0 0; background:#dfe8e5; color:var(--verde); padding:10px 18px; font-size:1rem; cursor:pointer; font-weight:600; }
+  nav button.act { background:var(--verde); color:#fff; }
+  main { display:none; flex-wrap:wrap; gap:20px; padding:20px; max-width:1350px; margin:auto; border-top:3px solid var(--verde); }
+  main.act { display:flex; }
+  .col { flex:1 1 480px; display:flex; flex-direction:column; gap:14px; min-width:0; }
+  .tarjeta { background:#fff; border-radius:10px; padding:14px 16px; box-shadow:0 1px 4px rgba(0,0,0,.1); }
+  .tarjeta h2 { margin:0 0 8px; font-size:1rem; color:var(--verde); }
+  .pista { font-size:.85rem; color:#555; margin:6px 0 0; line-height:1.4; }
+  label { display:flex; justify-content:space-between; font-weight:600; margin-top:8px; font-size:.92rem; }
+  label span.valor { color:var(--verde); font-variant-numeric:tabular-nums; }
+  input[type=range] { width:100%; accent-color:var(--verde); }
+  select { width:100%; padding:7px; font-size:.95rem; border:1px solid #ccc; border-radius:6px; margin-top:4px; }
+  button.b { border:1px solid var(--verde); background:#fff; color:var(--verde); padding:7px 12px; border-radius:6px; font-size:.9rem; cursor:pointer; }
+  button.b:hover { background:var(--verde); color:#fff; }
+  button.b.principal { background:var(--verde); color:#fff; }
+  .fila { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+  .dos { display:flex; flex-wrap:wrap; gap:14px; }
+  .dos > div { flex:1 1 200px; min-width:0; }
+  .formula { background:var(--verde-claro); border-radius:8px; padding:10px 12px; margin-top:8px; font-family:"Cambria Math",Georgia,serif; font-size:1.05rem; line-height:1.6; }
+  table { border-collapse:collapse; width:100%; font-size:.9rem; font-variant-numeric:tabular-nums; }
+  th, td { padding:4px 8px; text-align:center; border-bottom:1px solid #eee; }
+  th { color:var(--verde); }
+  .ok { color:#1e8449; font-weight:700; } .mal { color:var(--rojo); font-weight:700; }
+  .grande { font-size:1.6rem; font-weight:700; font-variant-numeric:tabular-nums; }
+  .metricas { display:flex; gap:10px; flex-wrap:wrap; }
+  .metrica { flex:1 1 90px; text-align:center; padding:8px; border-radius:8px; background:var(--verde-claro); }
+  .metrica .txt { font-size:.75rem; color:#555; }
+  .nota { border-left:4px solid var(--ambar); }
+  .mensaje { background:#fff6e0; border-left:4px solid var(--ambar); padding:8px 12px; border-radius:0 8px 8px 0; margin-top:8px; font-size:.92rem; line-height:1.45; }
+  canvas.mapa { width:100%; aspect-ratio:1; display:block; border:1px solid #ddd; border-radius:6px; background:#fff; cursor:crosshair; }
+  .galeria { display:flex; flex-wrap:wrap; gap:8px; }
+  .miniatura { text-align:center; font-size:.7rem; color:#555; }
+  .miniatura canvas { width:60px; height:60px; border:1px solid #ccc; border-radius:4px; display:block; }
+  .leyenda { display:flex; flex-wrap:wrap; gap:4px 14px; font-size:.85rem; margin-top:6px; }
+  .leyenda i { display:inline-block; width:11px; height:11px; border-radius:50%; margin-right:5px; vertical-align:middle; }
+  svg text { font-family:inherit; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Redes neuronales: de una neurona a una red que aprende</h1>
+  <p>Primero una sola neurona artificial; después, varias conectadas que aprenden de los datos, directamente en su navegador.</p>
+</header>
+<nav>
+  <button id="t1" class="act">1. Una neurona</button>
+  <button id="t2">2. Una red que aprende</button>
+</nav>
+
+<!-- ============================ PARTE 1 ============================ -->
+<main id="p1" class="act">
+  <div class="col">
+    <div class="tarjeta">
+      <h2>La neurona artificial</h2>
+      <svg id="svgN" viewBox="0 0 600 300" width="100%"></svg>
+      <div class="formula" id="formulaN"></div>
+      <div class="pista">Con <b>una sola entrada</b>, la neurona calcula <i>z = b + w·x</i>: la recta de la diapositiva sobre la función lineal. La neurona le agrega al final una <b>función de activación</b>.</div>
+    </div>
+    <div class="tarjeta">
+      <h2>Controles</h2>
+      <div class="dos">
+        <div>
+          <label>Entrada x₁ <span class="valor" id="vx1"></span></label><input type="range" id="x1" min="0" max="1" step="0.05" value="1">
+          <label>Entrada x₂ <span class="valor" id="vx2"></span></label><input type="range" id="x2" min="0" max="1" step="0.05" value="0">
+        </div>
+        <div>
+          <label>Peso w₁ <span class="valor" id="vw1"></span></label><input type="range" id="w1" min="-3" max="3" step="0.05" value="1">
+          <label>Peso w₂ <span class="valor" id="vw2"></span></label><input type="range" id="w2" min="-3" max="3" step="0.05" value="1">
+          <label>Sesgo b (bias) <span class="valor" id="vb"></span></label><input type="range" id="b" min="-3" max="3" step="0.05" value="-1.5">
+        </div>
+      </div>
+      <label style="margin-top:12px">Función de activación</label>
+      <select id="act"><option value="escalon">Escalón (umbral): 1 si z ≥ 0, si no 0</option><option value="sigmoide">Sigmoide: suaviza el escalón entre 0 y 1</option><option value="relu">ReLU: 0 si z &lt; 0, si no z</option></select>
+    </div>
+  </div>
+  <div class="col">
+    <div class="tarjeta">
+      <h2>¿Qué problema debe resolver? (tabla de verdad)</h2>
+      <select id="obj"><option value="Y">Compuerta Y (AND): 1 solo si x₁ y x₂ son 1</option><option value="O">Compuerta O (OR): 1 si alguna entrada es 1</option><option value="XOR">O exclusivo (XOR): 1 si las entradas son distintas</option></select>
+      <div class="dos" style="margin-top:10px">
+        <div>
+          <canvas id="mapaN" class="mapa" width="400" height="400"></canvas>
+          <div class="leyenda"><span><i style="background:var(--azul)"></i>objetivo 0</span><span><i style="background:var(--naranja)"></i>objetivo 1</span><span>✓ acierta · ✗ falla</span></div>
+        </div>
+        <div>
+          <table><thead><tr><th>x₁</th><th>x₂</th><th>Objetivo</th><th>Salida</th><th></th></tr></thead><tbody id="tablaN"></tbody></table>
+          <div class="metrica" style="margin-top:10px"><div class="grande" id="aciertos"></div><div class="txt">aciertos con estos pesos</div></div>
+        </div>
+      </div>
+      <div class="fila">
+        <button class="b" id="pY">Pesos para Y</button><button class="b" id="pO">Pesos para O</button>
+        <button class="b principal" id="buscar">Probar 15.625 combinaciones de pesos</button>
+      </div>
+      <div class="mensaje" id="mensajeN"></div>
+    </div>
+    <div class="tarjeta nota">
+      <h2>¿Qué observar?</h2>
+      <ul style="margin:0; padding-left:20px; line-height:1.55">
+        <li>La neurona decide con una <b>línea recta</b> en el plano (el borde entre azul y naranja). Los <b>pesos</b> la inclinan y el <b>sesgo</b> la desplaza.</li>
+        <li>Con Y y O hay pesos que aciertan los 4 casos. Con <b>XOR</b>, ninguna línea recta separa los casos: ninguna combinación pasa de 3 de 4.</li>
+        <li>Eso mismo limita a una neurona sola. La solución son varias neuronas en capas: pase a la <b>parte 2</b>.</li>
+      </ul>
+    </div>
+  </div>
+</main>
+
+<!-- ============================ PARTE 2 ============================ -->
+<main id="p2">
+  <div class="col">
+    <div class="tarjeta">
+      <h2>Lo que la red predice en cada punto del plano</h2>
+      <canvas id="mapaR" class="mapa" width="520" height="520"></canvas>
+      <div class="leyenda"><span><i style="background:var(--azul)"></i>clase 0</span><span><i style="background:var(--naranja)"></i>clase 1</span><span>● entrenamiento</span><span>○ prueba (la red no la ve al aprender)</span></div>
+      <div class="pista">El fondo muestra la predicción de la red: azul = clase 0, naranja = clase 1, claro = indecisa. Haga clic en el mapa para <b>agregar un punto</b>.</div>
+      <div class="fila" style="align-items:center"><span style="font-size:.9rem">Clic agrega clase:</span>
+        <select id="claseClic" style="width:auto;margin:0"><option value="0">0 (azul)</option><option value="1">1 (naranja)</option></select></div>
+    </div>
+    <div class="tarjeta">
+      <h2>Qué calcula cada neurona oculta</h2>
+      <div class="galeria" id="galeria"></div>
+      <div class="pista" id="pistaGaleria"></div>
+    </div>
+  </div>
+  <div class="col">
+    <div class="tarjeta">
+      <h2>Datos y arquitectura</h2>
+      <label>Conjunto de datos</label>
+      <select id="datos"><option value="lineal">Lineal: se separa con una recta</option><option value="xor">XOR: cuatro cuadrantes</option><option value="circulo" selected>Círculo dentro de un anillo</option><option value="lunas">Dos lunas</option><option value="espiral">Espiral (difícil)</option></select>
+      <div class="dos">
+        <div><label>Capas ocultas <span class="valor" id="vcapas"></span></label><input type="range" id="capas" min="0" max="2" step="1" value="1"></div>
+        <div><label>Neuronas por capa <span class="valor" id="vneur"></span></label><input type="range" id="neur" min="1" max="8" step="1" value="4"></div>
+      </div>
+      <div class="dos">
+        <div><label>Activación de las capas ocultas</label><select id="actR"><option value="tanh">tanh</option><option value="relu">ReLU</option></select></div>
+        <div><label>Velocidad de aprendizaje <span class="valor" id="vlr"></span></label><input type="range" id="lr" min="-3" max="-1" step="0.1" value="-1.5"></div>
+      </div>
+      <div class="fila">
+        <button class="b principal" id="jugar">▶ Entrenar</button>
+        <button class="b" id="paso">Una época</button>
+        <button class="b" id="reiniciarW">Reiniciar pesos</button>
+        <select id="vel" style="width:auto;margin:0"><option value="1">Lenta</option><option value="4" selected>Normal</option><option value="20">Rápida</option></select>
+      </div>
+      <div class="pista" style="margin-top:10px"><b>Ejemplos para probar:</b></div>
+      <div class="fila" style="margin-top:4px">
+        <button class="b" id="e1">Círculo con una sola neurona</button>
+        <button class="b" id="e2">Círculo con 1 capa de 4</button>
+        <button class="b" id="e3">Espiral con 2 capas de 8</button>
+      </div>
+    </div>
+    <div class="tarjeta">
+      <h2>Cómo va aprendiendo</h2>
+      <div class="metricas">
+        <div class="metrica"><div class="grande" id="mEpoca">0</div><div class="txt">épocas</div></div>
+        <div class="metrica"><div class="grande" id="mPerdida">–</div><div class="txt">pérdida (error)</div></div>
+        <div class="metrica"><div class="grande" id="mTrain">–</div><div class="txt">acierto en entrenamiento</div></div>
+        <div class="metrica"><div class="grande" id="mTest">–</div><div class="txt">acierto en prueba</div></div>
+      </div>
+      <svg id="svgPerdida" viewBox="0 0 520 130" width="100%" style="margin-top:8px"></svg>
+      <div class="pista">La <b>pérdida</b> mide qué tan equivocadas están las predicciones, igual que el error cuadrático de la regresión. El aprendizaje consiste en <b>ajustar los pesos</b> para que baje.</div>
+      <div class="mensaje" id="mensajeR"></div>
+    </div>
+    <div class="tarjeta">
+      <h2>La red</h2>
+      <svg id="svgRed" viewBox="0 0 560 270" width="100%"></svg>
+      <div class="pista">Cada línea es un peso: <span style="color:var(--azul);font-weight:700">azul</span> = positivo, <span style="color:var(--rojo);font-weight:700">rojo</span> = negativo; más gruesa = más importante. Total de pesos y sesgos a aprender: <b id="nParams"></b>.</div>
+    </div>
+  </div>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const NS = 'http://www.w3.org/2000/svg';
+const fmt = (v, d = 2) => (Math.round(v * 10 ** d) / 10 ** d).toLocaleString('es-CO', { minimumFractionDigits: d, maximumFractionDigits: d });
+function el(tag, attrs, parent, texto) { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); if (texto !== undefined) e.textContent = texto; return e; }
+const AZUL = '#1f6fb2', NARANJA = '#d35400', ROJO = '#c0392b';
+const hexRgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+const C0 = hexRgb(AZUL), C1 = hexRgb(NARANJA);
+// Color del fondo para una salida p entre 0 y 1: azul ↔ naranja, aclarado
+const colorP = p => { const t = Math.max(0, Math.min(1, p)); return C0.map((v, i) => Math.round((v + (C1[i] - v) * t) * 0.6 + 255 * 0.4)); };
+
+// ============================ PARTE 1: una neurona ============================
+const ACT = {
+  escalon:  { f: z => z >= 0 ? 1 : 0, umbral: 0 },
+  sigmoide: { f: z => 1 / (1 + Math.exp(-z)), umbral: 0 },
+  relu:     { f: z => Math.max(0, z), umbral: 0.5 },
+};
+const OBJ = { Y: (a, b) => (a && b) ? 1 : 0, O: (a, b) => (a || b) ? 1 : 0, XOR: (a, b) => a !== b ? 1 : 0 };
+const ENT = [[0, 0], [0, 1], [1, 0], [1, 1]];
+const N = { x1: 1, x2: 0, w1: 1, w2: 1, b: -1.5, act: 'escalon', obj: 'Y' };
+const salidaN = (x1, x2) => ACT[N.act].f(N.w1 * x1 + N.w2 * x2 + N.b);
+const claseN = (x1, x2) => salidaN(x1, x2) >= 0.5 ? 1 : 0;
+
+function dibujarNeurona() {
+  for (const k of ['x1', 'x2', 'w1', 'w2', 'b']) { N[k] = +$(k).value; $('v' + k).textContent = fmt(N[k]); }
+  N.act = $('act').value; N.obj = $('obj').value;
+  const z = N.w1 * N.x1 + N.w2 * N.x2 + N.b, y = ACT[N.act].f(z);
+  // Esquema, como en la diapositiva: entradas → pesos → suma (+ sesgo) → activación → salida
+  const s = $('svgN'); s.replaceChildren();
+  el('defs', {}, s).innerHTML = '<marker id="fl" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#555"/></marker>';
+  const grosor = w => 1 + Math.min(5, Math.abs(w) * 1.6), col = w => w >= 0 ? AZUL : ROJO;
+  [[N.x1, 'x₁', 80, N.w1, 'w₁'], [N.x2, 'x₂', 220, N.w2, 'w₂']].forEach(([x, nom, yy, w, nw]) => {
+    el('circle', { cx: 55, cy: yy, r: 24, fill: '#fff', stroke: '#555', 'stroke-width': 2 }, s);
+    el('text', { x: 55, y: yy - 3, 'text-anchor': 'middle', 'font-size': 13, 'font-weight': 700 }, s, nom);
+    el('text', { x: 55, y: yy + 13, 'text-anchor': 'middle', 'font-size': 12, fill: '#444' }, s, fmt(x));
+    el('line', { x1: 80, y1: yy, x2: 262, y2: 150, stroke: col(w), 'stroke-width': grosor(w), opacity: .75 }, s);
+    el('rect', { x: 126, y: (yy + 150) / 2 - 12 - (yy < 150 ? 8 : -8), width: 92, height: 22, rx: 6, fill: '#fff', stroke: col(w) }, s);
+    el('text', { x: 172, y: (yy + 150) / 2 + 3 - (yy < 150 ? 8 : -8), 'text-anchor': 'middle', 'font-size': 12, fill: col(w), 'font-weight': 700 }, s, `${nw} = ${fmt(w)}`);
+  });
+  el('text', { x: 55, y: 22, 'text-anchor': 'middle', 'font-size': 12, fill: '#777' }, s, 'Entradas');
+  el('text', { x: 172, y: 22, 'text-anchor': 'middle', 'font-size': 12, fill: '#777' }, s, 'Pesos');
+  el('circle', { cx: 290, cy: 150, r: 30, fill: '#e8f0ee', stroke: '#18453B', 'stroke-width': 2.5 }, s);
+  el('text', { x: 290, y: 146, 'text-anchor': 'middle', 'font-size': 20, 'font-weight': 700 }, s, 'Σ');
+  el('text', { x: 290, y: 164, 'text-anchor': 'middle', 'font-size': 12 }, s, `z = ${fmt(z)}`);
+  el('text', { x: 290, y: 108, 'text-anchor': 'middle', 'font-size': 12, fill: '#777' }, s, 'Suma');
+  el('line', { x1: 290, y1: 262, x2: 290, y2: 182, stroke: col(N.b), 'stroke-width': grosor(N.b), 'marker-end': 'url(#fl)', opacity: .75 }, s);
+  el('text', { x: 290, y: 282, 'text-anchor': 'middle', 'font-size': 12, fill: col(N.b), 'font-weight': 700 }, s, `sesgo b = ${fmt(N.b)}`);
+  // Función de activación con un minigráfico y el punto actual
+  el('line', { x1: 322, y1: 150, x2: 392, y2: 150, stroke: '#555', 'stroke-width': 2, 'marker-end': 'url(#fl)' }, s);
+  const bx = 395, by = 105, bw = 100, bh = 90, zx = v => bx + 8 + (v + 4) / 8 * (bw - 16), fy = v => by + bh - 10 - (Math.max(-0.3, Math.min(1.4, v)) + 0.3) / 1.7 * (bh - 20);
+  el('rect', { x: bx, y: by, width: bw, height: bh, rx: 8, fill: '#f6fbf4', stroke: '#18453B' }, s);
+  el('line', { x1: bx + 8, y1: fy(0), x2: bx + bw - 8, y2: fy(0), stroke: '#ccc' }, s);
+  el('line', { x1: zx(0), y1: by + 6, x2: zx(0), y2: by + bh - 6, stroke: '#ccc' }, s);
+  let d = ''; for (let i = 0; i <= 80; i++) { const zz = -4 + i / 10; d += (i ? 'L' : 'M') + zx(zz) + ',' + fy(ACT[N.act].f(zz)); }
+  el('path', { d, fill: 'none', stroke: '#18453B', 'stroke-width': 2.5 }, s);
+  const zc = Math.max(-4, Math.min(4, z));
+  el('circle', { cx: zx(zc), cy: fy(y), r: 6, fill: ROJO, stroke: '#fff', 'stroke-width': 2 }, s);
+  el('text', { x: bx + bw / 2, y: by - 8, 'text-anchor': 'middle', 'font-size': 12, fill: '#777' }, s, 'Función de activación');
+  el('line', { x1: 495, y1: 150, x2: 535, y2: 150, stroke: '#555', 'stroke-width': 2, 'marker-end': 'url(#fl)' }, s);
+  el('circle', { cx: 565, cy: 150, r: 26, fill: `rgb(${colorP(y > 1 ? 1 : y).join(',')})`, stroke: '#555', 'stroke-width': 2 }, s);
+  el('text', { x: 565, y: 155, 'text-anchor': 'middle', 'font-size': 14, 'font-weight': 700 }, s, fmt(y));
+  el('text', { x: 565, y: 112, 'text-anchor': 'middle', 'font-size': 12, fill: '#777' }, s, 'Salida y');
+  $('formulaN').innerHTML = `z = w₁·x₁ + w₂·x₂ + b = ${fmt(N.w1)}·${fmt(N.x1)} + ${fmt(N.w2)}·${fmt(N.x2)} + (${fmt(N.b)}) = <b>${fmt(z)}</b><br>y = f(z) = <b>${fmt(y)}</b>`;
+
+  // Mapa: qué sale para cualquier par de entradas; el borde es una recta
+  const cv = $('mapaN'), c = cv.getContext('2d'), R = 120, lo = -0.5, hi = 1.5, S = cv.width;
+  const off = document.createElement('canvas'); off.width = off.height = R; const oc = off.getContext('2d'), im = oc.createImageData(R, R);
+  for (let j = 0; j < R; j++) for (let i = 0; i < R; i++) {
+    const p = salidaN(lo + (i + .5) / R * (hi - lo), hi - (j + .5) / R * (hi - lo)), [r, g, b] = colorP(p), k = 4 * (j * R + i);
+    im.data[k] = r; im.data[k + 1] = g; im.data[k + 2] = b; im.data[k + 3] = 255;
+  }
+  oc.putImageData(im, 0, 0); c.imageSmoothingEnabled = true; c.drawImage(off, 0, 0, S, S);
+  const px = v => (v - lo) / (hi - lo) * S, py = v => (hi - v) / (hi - lo) * S;
+  c.strokeStyle = '#333'; c.lineWidth = 1; c.beginPath(); c.moveTo(px(0), 0); c.lineTo(px(0), S); c.moveTo(0, py(0)); c.lineTo(S, py(0)); c.stroke();
+  c.fillStyle = '#333'; c.font = '14px sans-serif'; c.fillText('x₁ →', S - 40, py(0) - 6); c.fillText('x₂ ↑', px(0) + 6, 16);
+  const th = ACT[N.act].umbral; c.strokeStyle = '#000'; c.lineWidth = 2.5; c.setLineDash([8, 5]); c.beginPath();
+  if (Math.abs(N.w2) > 1e-6) { c.moveTo(px(lo), py((th - N.b - N.w1 * lo) / N.w2)); c.lineTo(px(hi), py((th - N.b - N.w1 * hi) / N.w2)); }
+  else if (Math.abs(N.w1) > 1e-6) { const xv = (th - N.b) / N.w1; c.moveTo(px(xv), 0); c.lineTo(px(xv), S); }
+  c.stroke(); c.setLineDash([]);
+  ENT.forEach(([a, b2]) => {
+    const t = OBJ[N.obj](a, b2), ok = claseN(a, b2) === t;
+    c.beginPath(); c.arc(px(a), py(b2), 15, 0, 7); c.fillStyle = t ? NARANJA : AZUL; c.fill(); c.lineWidth = 3; c.strokeStyle = ok ? '#1e8449' : ROJO; c.stroke();
+    c.fillStyle = '#fff'; c.font = 'bold 15px sans-serif'; c.textAlign = 'center'; c.fillText(ok ? '✓' : '✗', px(a), py(b2) + 5); c.textAlign = 'left';
+  });
+  c.strokeStyle = '#000'; c.lineWidth = 2.5; const cx = px(N.x1), cy = py(N.x2); c.beginPath(); c.moveTo(cx - 8, cy - 8); c.lineTo(cx + 8, cy + 8); c.moveTo(cx - 8, cy + 8); c.lineTo(cx + 8, cy - 8); c.stroke();
+  // Tabla de verdad
+  let n = 0;
+  $('tablaN').innerHTML = ENT.map(([a, b2]) => { const t = OBJ[N.obj](a, b2), cl = claseN(a, b2), ok = cl === t; n += ok;
+    return `<tr><td>${a}</td><td>${b2}</td><td>${t}</td><td>${fmt(salidaN(a, b2))} → ${cl}</td><td class="${ok ? 'ok' : 'mal'}">${ok ? '✓' : '✗'}</td></tr>`; }).join('');
+  $('aciertos').textContent = `${n} de 4`; $('aciertos').className = 'grande ' + (n === 4 ? 'ok' : '');
+}
+function buscarPesos() {
+  const f = ACT[N.act].f, o = OBJ[N.obj], vals = []; for (let v = -3; v <= 3.0001; v += 0.25) vals.push(Math.round(v * 100) / 100);
+  let mejor = -1, arg = null, total = 0;
+  for (const w1 of vals) for (const w2 of vals) for (const b of vals) {
+    total++; let c = 0; for (const [a, b2] of ENT) if ((f(w1 * a + w2 * b2 + b) >= 0.5 ? 1 : 0) === o(a, b2)) c++;
+    if (c > mejor) { mejor = c; arg = [w1, w2, b]; }
+  }
+  return { mejor, arg, total };
+}
+function poner(w1, w2, b) { $('w1').value = w1; $('w2').value = w2; $('b').value = b; dibujarNeurona(); }
+['x1', 'x2', 'w1', 'w2', 'b', 'act', 'obj'].forEach(k => $(k).addEventListener('input', () => { $('mensajeN').innerHTML = ''; dibujarNeurona(); }));
+$('pY').addEventListener('click', () => { $('obj').value = 'Y'; poner(1, 1, -1.5); $('mensajeN').innerHTML = 'Con w₁ = w₂ = 1 y b = −1,5, la neurona solo «se enciende» cuando <b>las dos</b> entradas valen 1.'; });
+$('pO').addEventListener('click', () => { $('obj').value = 'O'; poner(1, 1, -0.5); $('mensajeN').innerHTML = 'Con w₁ = w₂ = 1 y b = −0,5, basta con que <b>una</b> entrada valga 1.'; });
+$('buscar').addEventListener('click', () => {
+  dibujarNeurona();   // lee el problema y la activación elegidos
+  const r = buscarPesos(); poner(...r.arg);
+  $('mensajeN').innerHTML = r.mejor === 4
+    ? `Se probaron <b>${r.total.toLocaleString('es-CO')}</b> combinaciones de (w₁, w₂, b). La mejor acierta <b>4 de 4</b>: w₁ = ${fmt(r.arg[0])}, w₂ = ${fmt(r.arg[1])}, b = ${fmt(r.arg[2])}.`
+    : `Se probaron <b>${r.total.toLocaleString('es-CO')}</b> combinaciones de (w₁, w₂, b) y <b>ninguna acierta los 4 casos</b>: lo máximo es <b>${r.mejor} de 4</b>. No es un problema de pesos: una sola neurona solo puede trazar <i>una recta</i>, y para este problema no existe ninguna recta que separe los casos azules de los naranjas.`;
+});
+
+// ============================ PARTE 2: red que aprende ============================
+function semilla(s) { return () => { s |= 0; s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function conjunto(nombre) {
+  const r = semilla({ lineal: 3, xor: 5, circulo: 7, lunas: 11, espiral: 13 }[nombre]), g = () => Math.sqrt(-2 * Math.log(r() || 1e-9)) * Math.cos(2 * Math.PI * r()), pts = [];
+  const add = (x, y, c) => pts.push({ x: Math.max(-1.05, Math.min(1.05, x)), y: Math.max(-1.05, Math.min(1.05, y)), c });
+  if (nombre === 'lineal') for (let i = 0; i < 150; i++) { add(-0.45 + g() * 0.27, -0.35 + g() * 0.27, 0); add(0.45 + g() * 0.27, 0.35 + g() * 0.27, 1); }
+  else if (nombre === 'xor') { while (pts.length < 300) { const x = r() * 2 - 1, y = r() * 2 - 1; if (Math.abs(x) < 0.1 || Math.abs(y) < 0.1) continue; add(x, y, x * y > 0 ? 1 : 0); } }
+  else if (nombre === 'circulo') for (let i = 0; i < 150; i++) { let a = r() * 2 * Math.PI, rr = 0.45 * Math.sqrt(r()); add(rr * Math.cos(a), rr * Math.sin(a), 1); a = r() * 2 * Math.PI; rr = 0.68 + 0.3 * r(); add(rr * Math.cos(a), rr * Math.sin(a), 0); }
+  else if (nombre === 'lunas') for (let i = 0; i < 150; i++) { let a = r() * Math.PI; add((Math.cos(a) - 0.5) / 1.5 + g() * 0.06, (Math.sin(a) - 0.25) / 0.9 + g() * 0.06, 0); a = r() * Math.PI; add((1 - Math.cos(a) - 0.5) / 1.5 + g() * 0.06, (0.5 - Math.sin(a) - 0.25) / 0.9 + g() * 0.06, 1); }
+  else for (let i = 0; i < 150; i++) for (const c of [0, 1]) { const t = i / 150, rr = 0.1 + 0.85 * t, a = t * 3 * Math.PI + c * Math.PI; add(rr * Math.cos(a) + g() * 0.03, rr * Math.sin(a) + g() * 0.03, c); }
+  pts.forEach((p, i) => { p.prueba = i % 5 === 4; });   // 20 % de los puntos se reservan para probar (el 5 evita coincidir con la alternancia de clases)
+  return pts;
+}
+
+const ACTR = { tanh: { f: Math.tanh, d: (a, z) => 1 - a * a }, relu: { f: z => Math.max(0, z), d: (a, z) => z > 0 ? 1 : 0 } };
+let datos = [], red = null, jugando = false, historial = [], semillaPesos = 1;
+const sig = z => 1 / (1 + Math.exp(-z));
+
+function crearRed(tam, seed) {
+  const r = semilla(seed), W = [], B = [], mW = [], vW = [], mB = [], vB = [];
+  for (let l = 0; l < tam.length - 1; l++) {
+    const ni = tam[l], no = tam[l + 1], lim = Math.sqrt(6 / (ni + no)), n = ni * no;
+    W.push(Float64Array.from({ length: n }, () => (r() * 2 - 1) * lim)); B.push(new Float64Array(no));
+    mW.push(new Float64Array(n)); vW.push(new Float64Array(n)); mB.push(new Float64Array(no)); vB.push(new Float64Array(no));
+  }
+  return { tam, W, B, mW, vW, mB, vB, t: 0 };
+}
+function adelante(red, x, y, guardar) {
+  const L = red.tam.length - 1, f = ACTR[$('actR').value].f; let a = [x, y]; const A = [a], Z = [];
+  for (let l = 0; l < L; l++) {
+    const ni = red.tam[l], no = red.tam[l + 1], z = new Float64Array(no), s = new Float64Array(no);
+    for (let j = 0; j < no; j++) { let t = red.B[l][j]; for (let i = 0; i < ni; i++) t += red.W[l][j * ni + i] * a[i]; z[j] = t; s[j] = l < L - 1 ? f(t) : sig(t); }
+    Z.push(z); A.push(s); a = s;
+  }
+  return guardar ? { A, Z } : a[0];
+}
+function epoca(red) {
+  const tr = datos.filter(p => !p.prueba), L = red.tam.length - 1, d = ACTR[$('actR').value].d, lr = Math.pow(10, +$('lr').value);
+  const gW = red.W.map(w => new Float64Array(w.length)), gB = red.B.map(b => new Float64Array(b.length)); let perdida = 0;
+  for (const p of tr) {
+    const { A, Z } = adelante(red, p.x, p.y, true), pr = Math.min(1 - 1e-9, Math.max(1e-9, A[L][0]));
+    perdida -= p.c ? Math.log(pr) : Math.log(1 - pr);
+    let delta = [pr - p.c];
+    for (let l = L - 1; l >= 0; l--) {
+      const ni = red.tam[l], no = red.tam[l + 1], prev = l > 0 ? new Float64Array(ni) : null;
+      for (let j = 0; j < no; j++) { gB[l][j] += delta[j]; for (let i = 0; i < ni; i++) { gW[l][j * ni + i] += delta[j] * A[l][i]; if (prev) prev[i] += red.W[l][j * ni + i] * delta[j]; } }
+      if (prev) for (let i = 0; i < ni; i++) prev[i] *= d(A[l][i], Z[l - 1][i]);
+      delta = prev;
+    }
+  }
+  red.t++; const b1 = 0.9, b2 = 0.999, n = tr.length, c1 = 1 - Math.pow(b1, red.t), c2 = 1 - Math.pow(b2, red.t);
+  for (let l = 0; l < L; l++) for (const [P, G, M, V] of [[red.W[l], gW[l], red.mW[l], red.vW[l]], [red.B[l], gB[l], red.mB[l], red.vB[l]]])
+    for (let k = 0; k < P.length; k++) { const g = G[k] / n; M[k] = b1 * M[k] + (1 - b1) * g; V[k] = b2 * V[k] + (1 - b2) * g * g; P[k] -= lr * (M[k] / c1) / (Math.sqrt(V[k] / c2) + 1e-8); }
+  return perdida / n;
+}
+const precision = (red, prueba) => { const ps = datos.filter(p => p.prueba === prueba); return ps.length ? ps.filter(p => (adelante(red, p.x, p.y) >= 0.5 ? 1 : 0) === p.c).length / ps.length : NaN; };
+
+function arquitectura() { const h = +$('capas').value, n = +$('neur').value; return [2, ...Array(h).fill(n), 1]; }
+function reiniciarRed(nuevaSemilla) {
+  jugando = false; $('jugar').textContent = '▶ Entrenar';
+  if (nuevaSemilla) semillaPesos++;
+  red = crearRed(arquitectura(), semillaPesos * 101 + 7); historial = [];
+  $('vcapas').textContent = $('capas').value; $('vneur').textContent = $('neur').value; $('vlr').textContent = fmt(Math.pow(10, +$('lr').value), 3);
+  $('neur').disabled = +$('capas').value === 0;
+  $('nParams').textContent = red.W.reduce((s, w) => s + w.length, 0) + red.B.reduce((s, b) => s + b.length, 0);
+  dibujarRed();
+}
+function cargarDatos() { datos = conjunto($('datos').value); reiniciarRed(false); }
+
+function dibujarRed() {
+  const S = 64, cv = $('mapaR'), c = cv.getContext('2d'), W = cv.width, lo = -1.1, hi = 1.1;
+  const hidden = []; for (let l = 1; l < red.tam.length - 1; l++) for (let j = 0; j < red.tam[l]; j++) hidden.push({ l, j, im: new ImageData(S, S) });
+  const main = new ImageData(S, S), esc = $('actR').value === 'tanh' ? a => (a + 1) / 2 : a => a / 1.5;
+  for (let jy = 0; jy < S; jy++) for (let ix = 0; ix < S; ix++) {
+    const x = lo + (ix + .5) / S * (hi - lo), y = hi - (jy + .5) / S * (hi - lo), { A } = adelante(red, x, y, true), k = 4 * (jy * S + ix);
+    const [r, g, b] = colorP(A[A.length - 1][0]); main.data[k] = r; main.data[k + 1] = g; main.data[k + 2] = b; main.data[k + 3] = 255;
+    for (const h of hidden) { const [r2, g2, b2] = colorP(esc(A[h.l][h.j])); h.im.data[k] = r2; h.im.data[k + 1] = g2; h.im.data[k + 2] = b2; h.im.data[k + 3] = 255; }
+  }
+  const pinta = (ctx, im, w) => { const o = document.createElement('canvas'); o.width = o.height = S; o.getContext('2d').putImageData(im, 0, 0); ctx.imageSmoothingEnabled = true; ctx.drawImage(o, 0, 0, w, w); };
+  pinta(c, main, W);
+  const px = v => (v - lo) / (hi - lo) * W, py = v => (hi - v) / (hi - lo) * W;
+  c.strokeStyle = 'rgba(0,0,0,.25)'; c.lineWidth = 1; c.beginPath(); c.moveTo(px(0), 0); c.lineTo(px(0), W); c.moveTo(0, py(0)); c.lineTo(W, py(0)); c.stroke();
+  for (const p of datos) { c.beginPath(); c.arc(px(p.x), py(p.y), 5.5, 0, 7);
+    if (p.prueba) { c.fillStyle = '#fff'; c.fill(); c.lineWidth = 2.5; c.strokeStyle = p.c ? NARANJA : AZUL; c.stroke(); }
+    else { c.fillStyle = p.c ? NARANJA : AZUL; c.fill(); c.lineWidth = 1.2; c.strokeStyle = '#fff'; c.stroke(); } }
+  // Galería de neuronas ocultas
+  const gal = $('galeria'); gal.replaceChildren();
+  hidden.forEach(h => { const d = document.createElement('div'); d.className = 'miniatura'; const cc = document.createElement('canvas'); cc.width = cc.height = 60; d.appendChild(cc); d.appendChild(document.createTextNode(`capa ${h.l} · n.º ${h.j + 1}`)); gal.appendChild(d); pinta(cc.getContext('2d'), h.im, 60); });
+  $('pistaGaleria').textContent = hidden.length ? 'Cada cuadro muestra qué «ve» una neurona oculta: normalmente una frontera sencilla (una recta o una curva suave). La neurona de salida combina esas fronteras para dibujar la forma final.' : 'Sin capas ocultas solo hay una neurona (la de salida): por eso su frontera es siempre una recta.';
+  // Métricas
+  const tr = precision(red, false), te = precision(red, true), ult = historial.length ? historial[historial.length - 1] : NaN;
+  $('mEpoca').textContent = red.t; $('mPerdida').textContent = isNaN(ult) ? '–' : fmt(ult, 3);
+  $('mTrain').textContent = fmt(tr * 100, 0) + ' %'; $('mTest').textContent = isNaN(te) ? '–' : fmt(te * 100, 0) + ' %';
+  $('mensajeR').innerHTML = mensaje(tr, te);
+  // Gráfico de pérdida
+  const g = $('svgPerdida'); g.replaceChildren(); el('rect', { x: 36, y: 8, width: 476, height: 100, fill: '#fcfdfc', stroke: '#ddd' }, g);
+  if (historial.length > 1) {
+    const mx = Math.max(...historial, 0.8), n = historial.length, X = i => 36 + i / (n - 1) * 476, Y = v => 108 - v / mx * 96;
+    el('path', { d: historial.map((v, i) => (i ? 'L' : 'M') + X(i) + ',' + Y(v)).join(''), fill: 'none', stroke: '#18453B', 'stroke-width': 2 }, g);
+    el('text', { x: 32, y: 16, 'text-anchor': 'end', 'font-size': 11, fill: '#666' }, g, fmt(mx, 1)); el('text', { x: 32, y: 108, 'text-anchor': 'end', 'font-size': 11, fill: '#666' }, g, '0');
+  }
+  el('text', { x: 274, y: 125, 'text-anchor': 'middle', 'font-size': 11, fill: '#666' }, g, 'épocas →');
+  // Diagrama de la red
+  const s = $('svgRed'); s.replaceChildren(); const tam = red.tam, Lc = tam.length, X = l => 60 + l * (440 / (Lc - 1)), Yn = (l, i) => 135 + (i - (tam[l] - 1) / 2) * Math.min(48, 230 / tam[l]);
+  for (let l = 0; l < Lc - 1; l++) for (let j = 0; j < tam[l + 1]; j++) for (let i = 0; i < tam[l]; i++) { const w = red.W[l][j * tam[l] + i];
+    el('line', { x1: X(l), y1: Yn(l, i), x2: X(l + 1), y2: Yn(l + 1, j), stroke: w >= 0 ? AZUL : ROJO, 'stroke-width': 0.4 + Math.min(4.5, Math.abs(w) * 1.1), opacity: .55 }, s); }
+  for (let l = 0; l < Lc; l++) for (let i = 0; i < tam[l]; i++) el('circle', { cx: X(l), cy: Yn(l, i), r: 11, fill: l === 0 ? '#eee' : l === Lc - 1 ? '#fde8d8' : '#e8f0ee', stroke: '#444', 'stroke-width': 1.5 }, s);
+  el('text', { x: X(0) - 18, y: Yn(0, 0) + 4, 'text-anchor': 'end', 'font-size': 12 }, s, 'x₁'); el('text', { x: X(0) - 18, y: Yn(0, 1) + 4, 'text-anchor': 'end', 'font-size': 12 }, s, 'x₂');
+  el('text', { x: X(Lc - 1) + 18, y: Yn(Lc - 1, 0) + 4, 'font-size': 12 }, s, 'ŷ');
+  ['Entrada', ...Array.from({ length: Lc - 2 }, (_, k) => 'Oculta ' + (k + 1)), 'Salida'].forEach((t, l) => el('text', { x: X(l), y: 14, 'text-anchor': 'middle', 'font-size': 11, fill: '#777' }, s, t));
+}
+function mensaje(tr, te) {
+  if (red.t === 0) return 'Presione <b>Entrenar</b>. Al principio los pesos son al azar y la red adivina.';
+  const h = +$('capas').value;
+  if (tr >= 0.95) return `<b>¡Aprendió!</b> Acierta ${fmt(tr * 100, 0)} % en entrenamiento y ${fmt(te * 100, 0)} % en puntos que nunca vio (los círculos huecos).${te < tr - 0.08 ? ' La diferencia sugiere <b>sobreajuste</b>: se aprendió demasiado de los ejemplos y se generaliza peor.' : ''}`;
+  if (h === 0 && red.t > 150) return 'Con <b>una sola neurona</b> la frontera es siempre una recta, y este conjunto no se puede separar con una recta. Agregue una capa oculta.';
+  if (h > 0 && +$('neur').value < 3 && red.t > 300 && ['xor', 'circulo', 'lunas', 'espiral'].includes($('datos').value)) return 'Con tan pocas neuronas la red no tiene suficiente capacidad para esta forma. Pruebe con más neuronas o con otra capa.';
+  return `Entrenando… acierto ${fmt(tr * 100, 0)} %. Mire cómo el fondo se va moldeando y cómo baja la pérdida.`;
+}
+
+function entrenar(n) { for (let k = 0; k < n; k++) historial.push(epoca(red)); if (historial.length > 600) historial = historial.filter((_, i) => i % 2 === 0); }
+function ciclo() { if (!jugando) return; entrenar(+$('vel').value); dibujarRed(); requestAnimationFrame(ciclo); }
+$('jugar').addEventListener('click', () => { jugando = !jugando; $('jugar').textContent = jugando ? '⏸ Pausar' : '▶ Entrenar'; if (jugando) ciclo(); });
+$('paso').addEventListener('click', () => { jugando = false; $('jugar').textContent = '▶ Entrenar'; entrenar(1); dibujarRed(); });
+$('reiniciarW').addEventListener('click', () => reiniciarRed(true));
+['capas', 'neur', 'actR', 'lr'].forEach(k => $(k).addEventListener('input', () => k === 'lr' ? ($('vlr').textContent = fmt(Math.pow(10, +$('lr').value), 3)) : reiniciarRed(false)));
+$('datos').addEventListener('change', cargarDatos);
+function ejemplo(d, capas, neur, lr, vel) { $('datos').value = d; $('capas').value = capas; $('neur').value = neur; $('lr').value = lr; $('vel').value = vel; cargarDatos(); jugando = true; $('jugar').textContent = '⏸ Pausar'; ciclo(); }
+$('e1').addEventListener('click', () => ejemplo('circulo', 0, 4, -1.5, 4));
+$('e2').addEventListener('click', () => ejemplo('circulo', 1, 4, -1.5, 4));
+$('e3').addEventListener('click', () => ejemplo('espiral', 2, 8, -1.7, 20));
+$('mapaR').addEventListener('click', ev => { const r = ev.target.getBoundingClientRect(), x = (ev.clientX - r.left) / r.width * 2.2 - 1.1, y = 1.1 - (ev.clientY - r.top) / r.height * 2.2;
+  datos.push({ x, y, c: +$('claseClic').value, prueba: false }); dibujarRed(); });
+
+// Pestañas
+function pestana(n) { for (const k of [1, 2]) { $('p' + k).classList.toggle('act', k === n); $('t' + k).classList.toggle('act', k === n); } if (n === 2) { if (!red) cargarDatos(); else dibujarRed(); } else jugando = false, $('jugar').textContent = '▶ Entrenar'; }
+$('t1').addEventListener('click', () => pestana(1)); $('t2').addEventListener('click', () => pestana(2));
+dibujarNeurona();
+</script>
+</body>
+</html>
