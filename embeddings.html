@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Embeddings — ejemplo interactivo</title>
+<style>
+  :root { --verde:#18453B; --verde-claro:#e8f0ee; --acento:#c0392b; --azul:#1f6fb2; --ambar:#e0a800; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; color:#222; background:#f6f8f7; }
+  header { background:var(--verde); color:#fff; padding:14px 24px; }
+  header h1 { margin:0; font-size:1.5rem; font-weight:600; }
+  header p { margin:4px 0 0; opacity:.85; }
+  main { display:flex; flex-wrap:wrap; gap:20px; padding:20px; max-width:1350px; margin:auto; }
+  .col-mapa { flex:1 1 620px; display:flex; flex-direction:column; gap:14px; min-width:0; }
+  .col-panel { flex:1 1 480px; display:flex; flex-direction:column; gap:14px; min-width:0; }
+  .tarjeta { background:#fff; border-radius:10px; padding:14px 16px; box-shadow:0 1px 4px rgba(0,0,0,.1); }
+  .tarjeta h2 { margin:0 0 8px; font-size:1rem; color:var(--verde); }
+  .pista { font-size:.85rem; color:#555; margin:6px 0 0; line-height:1.4; }
+  button { border:1px solid var(--verde); background:#fff; color:var(--verde); padding:7px 12px; border-radius:6px; font-size:.9rem; cursor:pointer; }
+  button:hover { background:var(--verde); color:#fff; }
+  button.principal { background:var(--verde); color:#fff; }
+  select, input[type=text], textarea { font-size:.95rem; padding:7px 9px; border:1px solid #ccc; border-radius:6px; font-family:inherit; }
+  select:focus, input[type=text]:focus, textarea:focus { outline:2px solid var(--verde); border-color:transparent; }
+  .pestanas { display:flex; gap:4px; border-bottom:2px solid var(--verde-claro); margin-bottom:12px; flex-wrap:wrap; }
+  .pestanas button { border:none; border-radius:6px 6px 0 0; background:#eef3f1; padding:8px 12px; }
+  .pestanas button.act { background:var(--verde); color:#fff; }
+  .leyenda { display:flex; flex-wrap:wrap; gap:6px 14px; font-size:.85rem; margin-top:6px; }
+  .leyenda span i { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:5px; vertical-align:middle; }
+  .fila { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:8px; }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; margin:6px 0; }
+  .chips button { font-size:.82rem; padding:4px 9px; }
+  .vecino { display:flex; align-items:center; gap:8px; padding:3px 0; cursor:pointer; }
+  .vecino:hover { background:var(--verde-claro); }
+  .vecino .nom { width:110px; font-weight:600; }
+  .vecino .barra { flex:1; height:12px; background:#eee; border-radius:6px; overflow:hidden; }
+  .vecino .barra i { display:block; height:100%; background:var(--verde); }
+  .vecino .num { width:52px; text-align:right; font-variant-numeric:tabular-nums; }
+  .dim { display:flex; align-items:center; gap:6px; font-size:.8rem; height:18px; }
+  .dim .et { width:46px; color:#666; }
+  .dim .eje { position:relative; flex:1; height:12px; background:#f3f3f3; }
+  .dim .eje::after { content:""; position:absolute; left:50%; top:-2px; bottom:-2px; width:1px; background:#999; }
+  .dim .eje i { position:absolute; top:0; height:100%; }
+  .dim .v { width:50px; text-align:right; font-variant-numeric:tabular-nums; }
+  .cuadro { background:var(--verde-claro); border-radius:8px; padding:10px 12px; margin:8px 0; }
+  .grande { font-size:1.8rem; font-weight:700; font-variant-numeric:tabular-nums; }
+  table { border-collapse:collapse; width:100%; font-size:.85rem; font-variant-numeric:tabular-nums; }
+  th, td { padding:3px 6px; text-align:right; border-bottom:1px solid #eee; }
+  th { color:var(--verde); }
+  .res { padding:6px 8px; border-left:3px solid #ccc; margin-bottom:6px; background:#fafafa; border-radius:0 6px 6px 0; font-size:.9rem; }
+  .res.sem { border-color:var(--verde); }
+  .res small { display:block; color:#777; margin-top:2px; }
+  .res .ins { display:inline-block; background:#fff6e0; border:1px solid var(--ambar); border-radius:10px; padding:0 6px; font-size:.72rem; color:#7a5c00; margin-left:4px; }
+  mark { background:#ffe58a; padding:0 1px; }
+  .dos { display:flex; flex-wrap:wrap; gap:14px; }
+  .dos > div { flex:1 1 220px; min-width:0; }
+  .dos h3 { margin:6px 0; font-size:.9rem; color:var(--verde); }
+  textarea { width:100%; height:300px; font-size:.85rem; line-height:1.4; }
+  .tira { display:block; width:100%; height:26px; background:#f3f3f3; }
+  .nota { border-left:4px solid var(--ambar); }
+  svg text { font-family:inherit; }
+  circle.pt { cursor:pointer; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Embeddings: cómo un computador representa el significado de las palabras</h1>
+  <p>Un mini modelo entrenado en su navegador con frases en español. Es la misma idea de Word2Vec, en pequeño.</p>
+</header>
+<main>
+  <div class="col-mapa">
+    <div class="tarjeta">
+      <h2>Mapa de palabras en dos dimensiones</h2>
+      <svg id="mapa" viewBox="0 0 680 520" width="100%"></svg>
+      <div class="leyenda" id="leyenda"></div>
+      <div class="fila" style="margin-top:8px">
+        <label><input type="checkbox" id="chkColor" checked> Colorear por tema</label>
+        <label><input type="checkbox" id="chkTodas"> Mostrar todas las palabras</label>
+      </div>
+      <p class="pista">Haga clic en un punto para estudiar esa palabra. Los colores solo indican en qué tipo de frases aparece más: <b>el modelo no conoce los temas</b>; las posiciones salen únicamente de qué palabras aparecen cerca de cuáles.</p>
+    </div>
+    <div class="tarjeta nota">
+      <h2>¿Qué observar?</h2>
+      <ul style="margin:0; padding-left:20px; line-height:1.55">
+        <li><b>Palabras con contextos parecidos quedan cerca</b> (juez, magistrado, jueza), aunque nadie le dijo al modelo que significan lo mismo.</li>
+        <li>En <b>one-hot</b> toda palabra es igual de distinta de las demás (similitud 0). En un <b>embedding</b> hay grados de parecido.</li>
+        <li>Este modelo es minúsculo: unas 200 frases en vez de miles de millones de palabras, y 12 números por palabra en vez de cientos. Por eso comete errores que uno grande no cometería.</li>
+        <li>En la pestaña <b>Buscador</b> verá la idea detrás de RAG: encontrar texto por su significado y no solo por las palabras exactas.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="col-panel">
+    <div class="tarjeta">
+      <div class="pestanas" id="pestanas">
+        <button data-t="palabra" class="act">Una palabra</button>
+        <button data-t="comparar">Comparar dos palabras</button>
+        <button data-t="buscador">Buscador</button>
+        <button data-t="corpus">Texto de entrenamiento</button>
+      </div>
+      <div id="contenido"></div>
+    </div>
+  </div>
+</main>
+
+<script>
+// ===================== Texto de entrenamiento =====================
+const BASE = [
+  { tema:'Proceso judicial', color:'#c0392b', frases:[
+    'El juez dictó la sentencia en el tribunal.',
+    'El magistrado dictó la sentencia después de la audiencia.',
+    'La jueza escuchó al testigo durante la audiencia.',
+    'El abogado presentó la demanda ante el tribunal.',
+    'La abogada defendió al cliente en la audiencia.',
+    'El fiscal acusó al acusado de un delito.',
+    'El acusado negó el delito ante el juez.',
+    'El testigo declaró en el juicio ante el magistrado.',
+    'La sentencia condenó al acusado por el delito.',
+    'El tribunal revisó la apelación del abogado.',
+    'La defensa apeló la sentencia del juez.',
+    'El fiscal presentó la prueba durante el juicio.',
+    'El juez admitió la prueba del abogado en la audiencia.',
+    'La demanda llegó al juzgado y la jueza fijó la audiencia.',
+    'El proceso penal terminó con la sentencia del tribunal.',
+    'El abogado preparó la defensa del acusado para el juicio.',
+    'El magistrado estudió el expediente antes de la sentencia.',
+    'El juzgado recibió el expediente y la demanda.',
+    'El fiscal investigó el delito y presentó la acusación.',
+    'El testigo juró decir la verdad ante el tribunal.',
+    'La ley establece la pena para el delito.',
+    'El legislador aprobó la ley en el congreso.',
+    'La norma obliga al juez a motivar la sentencia.',
+    'El congreso discutió la ley y la norma.' ] },
+  { tema:'Contratos y comercio', color:'#1f6fb2', frases:[
+    'La empresa firmó el contrato con el cliente.',
+    'El cliente pagó la factura al proveedor.',
+    'El contrato incluye una cláusula sobre el pago.',
+    'La cláusula fija el precio y el plazo del contrato.',
+    'El banco aprobó el crédito para la empresa.',
+    'La empresa tiene una deuda con el banco.',
+    'El deudor no pagó la deuda en el plazo.',
+    'El proveedor entregó la mercancía y envió la factura.',
+    'El gerente negoció el precio con el proveedor.',
+    'La empresa vendió la mercancía al cliente por un precio justo.',
+    'El comprador firmó el contrato y pagó el precio.',
+    'El vendedor entregó el producto y recibió el pago.',
+    'El banco cobró la deuda al deudor con intereses.',
+    'El gerente revisó el contrato y la cláusula del plazo.',
+    'El abogado revisó el contrato y la cláusula antes de la firma.',
+    'El cliente demandó a la empresa por incumplir el contrato.' ] },
+  { tema:'Salud', color:'#2e8b57', frases:[
+    'El médico atendió al paciente en el hospital.',
+    'El doctor operó al paciente durante la cirugía.',
+    'La enfermera cuidó al paciente después de la cirugía.',
+    'El paciente tomó la medicina que recetó el médico.',
+    'El hospital recibió al paciente con fiebre.',
+    'El doctor recetó una medicina para la fiebre.',
+    'La enfermera midió la fiebre del paciente en el hospital.',
+    'El médico examinó al paciente y ordenó una cirugía.',
+    'La cirugía duró dos horas y el doctor salvó al paciente.',
+    'El paciente sintió dolor y visitó al médico.',
+    'La enfermera dio la medicina al paciente contra el dolor.',
+    'El hospital contrató a un médico y a una enfermera.',
+    'El doctor explicó el diagnóstico al paciente.',
+    'El médico revisó el diagnóstico y la medicina del paciente.' ] },
+  { tema:'Hogar y animales', color:'#e0a800', frases:[
+    'El perro corrió por el parque con el niño.',
+    'El gato durmió en la casa junto a la ventana.',
+    'El niño jugó con el perro en el jardín.',
+    'La familia vive en una casa con jardín.',
+    'El gato persiguió al ratón por la casa.',
+    'El perro ladró al gato en el jardín.',
+    'La madre cocinó en la cocina de la casa.',
+    'El padre llevó al niño y al perro al parque.',
+    'El niño comió en la cocina con la familia.',
+    'El gato bebió leche en la cocina.',
+    'La familia paseó al perro por el parque.',
+    'El ratón se escondió en el jardín de la casa.',
+    'La madre llamó al niño desde la ventana.',
+    'El perro durmió en la casa con el gato.' ] },
+  { tema:'Tecnología e IA', color:'#8e44ad', frases:[
+    'El algoritmo aprende patrones a partir de los datos.',
+    'El modelo de inteligencia artificial procesa los datos.',
+    'El programador escribió el programa en la computadora.',
+    'La computadora ejecuta el algoritmo y el programa.',
+    'El modelo predice el resultado con los datos de entrenamiento.',
+    'El ingeniero entrenó el modelo con muchos datos.',
+    'La inteligencia artificial analiza el texto y los datos.',
+    'El programador revisó el código del programa.',
+    'El algoritmo clasifica el texto con el modelo.',
+    'El ingeniero probó el algoritmo en la computadora.',
+    'El modelo aprende del texto y genera respuestas.',
+    'La inteligencia artificial ayuda al abogado a revisar el contrato.',
+    'El programa procesa el código y los datos del sistema.',
+    'El sistema usa un algoritmo para clasificar los datos.',
+    'El ingeniero ajustó el modelo y el sistema.',
+    'El juez usó un sistema de inteligencia artificial para revisar el expediente.' ] },
+];
+// Frases adicionales escritas con moldes: varios roles equivalentes (juez, magistrado, jueza…) aparecen en los mismos contextos,
+// como ocurriría en un texto grande. Para cada molde se omite uno de los sujetos, de modo que el parecido sea alto pero no idéntico.
+function expandir(grupos) {
+  const salida = [];
+  grupos.forEach(g => g.frases.forEach((f, i) => {
+    const n = g.sujetos.length, salta = i % (n + 1);
+    g.sujetos.forEach((suj, k) => { if (n > 1 && k === salta) return; salida.push(`${suj} ${f}`); });
+  }));
+  return salida;
+}
+const GRUPOS_GEN = [
+  [ { sujetos:['El juez','El magistrado','La jueza'], frases:['dictó la sentencia en el tribunal.','presidió la audiencia en el juzgado.','estudió el expediente antes de la sentencia.','admitió la prueba durante el juicio.','condenó al acusado por el delito.','motivó la sentencia según la ley.'] },
+    { sujetos:['El abogado','La abogada'], frases:['presentó la demanda ante el tribunal.','defendió al cliente en la audiencia.','preparó la defensa para el juicio.','apeló la sentencia del juez.','presentó la prueba durante el juicio.','revisó el contrato con el cliente.'] },
+    { sujetos:['El fiscal'], frases:['acusó al acusado por el delito.','investigó el delito y presentó la acusación.','presentó la prueba durante el juicio.','habló ante el tribunal en la audiencia.'] },
+    { sujetos:['El testigo','El acusado'], frases:['declaró ante el tribunal.','juró decir la verdad en el juicio.','escuchó al juez en la audiencia.','negó el delito ante el magistrado.'] } ],
+  [ { sujetos:['La empresa','La compañía','La sociedad'], frases:['firmó el contrato con el cliente.','pagó la factura al proveedor.','tiene una deuda con el banco.','vendió la mercancía a un precio justo.','incumplió la cláusula del contrato.','recibió el crédito del banco.'] },
+    { sujetos:['El proveedor','El vendedor'], frases:['entregó la mercancía y envió la factura.','negoció el precio con el comprador.','cobró el pago al cliente.','firmó el contrato con la empresa.'] },
+    { sujetos:['El cliente','El comprador'], frases:['firmó el contrato y pagó el precio.','recibió la mercancía y la factura.','demandó a la empresa por incumplir el contrato.','negoció el plazo del pago con el vendedor.'] },
+    { sujetos:['El banco'], frases:['aprobó el crédito para la empresa.','cobró la deuda con intereses.','revisó el contrato del crédito.'] } ],
+  [ { sujetos:['El médico','El doctor'], frases:['atendió al paciente en el hospital.','operó al paciente durante la cirugía.','recetó una medicina para la fiebre.','explicó el diagnóstico al paciente.','examinó al paciente y ordenó una cirugía.','revisó el diagnóstico y la medicina.'] },
+    { sujetos:['La enfermera'], frases:['cuidó al paciente después de la cirugía.','midió la fiebre del paciente en el hospital.','dio la medicina al paciente.','ayudó al médico durante la cirugía.'] },
+    { sujetos:['El paciente'], frases:['sintió dolor y visitó al médico.','tomó la medicina contra la fiebre.','esperó en el hospital después de la cirugía.','habló con el doctor sobre el diagnóstico.'] } ],
+  [ { sujetos:['El perro','El gato'], frases:['durmió en la casa junto a la ventana.','jugó con el niño en el jardín.','bebió agua en la cocina.','corrió por el jardín de la casa.','se escondió debajo de la mesa.','miró al niño desde la puerta.','comió en la cocina con la familia.','esperó al padre en la casa.','jugó con el niño en el parque.'] },
+    { sujetos:['El perro'], frases:['ladró al gato en el jardín.','paseó por el parque con la familia.','corrió por el parque con el niño.'] },
+    { sujetos:['El gato'], frases:['persiguió al ratón por la casa.','bebió leche en la cocina.','miró al ratón desde la ventana.'] },
+    { sujetos:['El niño','La madre','El padre'], frases:['comió en la cocina de la casa.','jugó en el jardín con el perro.','llevó al perro al parque.','habló con la familia en la casa.'] } ],
+  [ { sujetos:['El algoritmo','El modelo','El programa'], frases:['procesa los datos del sistema.','aprende patrones a partir del texto.','clasifica los datos con inteligencia artificial.','se ejecuta en la computadora.','genera respuestas con los datos.','usa el código del sistema.'] },
+    { sujetos:['El programador','El ingeniero'], frases:['escribió el código del programa.','entrenó el modelo con muchos datos.','probó el algoritmo en la computadora.','ajustó el sistema y el modelo.'] } ],
+];
+BASE.forEach((b, t) => { const ya = new Set(b.frases); for (const f of expandir(GRUPOS_GEN[t])) if (!ya.has(f)) { ya.add(f); b.frases.push(f); } });
+const TEXTO_BASE = BASE.map(b => `# ${b.tema}\n${b.frases.join('\n')}`).join('\n\n');
+
+// ===================== Entrenamiento =====================
+const STOP = new Set(('el la los las un una unos unas de del al a en y o u que se su sus con por para es fue son lo le les como más muy no ni sin sobre entre ' +
+  'este esta ese esa mi tu me te nos ya también pero si cuando donde hasta desde tras ante durante después antes junto contra mismo cada').split(' '));
+const tokenizar = s => (s.toLowerCase().match(/\p{L}+/gu) || []).filter(w => !STOP.has(w));
+let DIM = 12, POT = 0.5, VENTANA = 2;   // dimensiones, peso de las dimensiones principales, ventana de contexto
+
+// Valores y vectores propios de una matriz simétrica (método de Jacobi)
+function jacobi(A, n) {
+  const V = Array.from({ length: n }, (_, i) => { const r = new Float64Array(n); r[i] = 1; return r; });
+  for (let barrido = 0; barrido < 14; barrido++) {
+    let fuera = 0;
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) fuera += A[i][j] * A[i][j];
+    if (fuera < 1e-10) break;
+    for (let p = 0; p < n - 1; p++) for (let q = p + 1; q < n; q++) {
+      const apq = A[p][q]; if (Math.abs(apq) < 1e-12) continue;
+      const th = (A[q][q] - A[p][p]) / (2 * apq);
+      const t = (th >= 0 ? 1 : -1) / (Math.abs(th) + Math.sqrt(th * th + 1)), c = 1 / Math.sqrt(t * t + 1), s = t * c;
+      for (let k = 0; k < n; k++) { const x = A[k][p], y = A[k][q]; A[k][p] = c * x - s * y; A[k][q] = s * x + c * y; }
+      for (let k = 0; k < n; k++) { const x = A[p][k], y = A[q][k]; A[p][k] = c * x - s * y; A[q][k] = s * x + c * y; }
+      for (let k = 0; k < n; k++) { const x = V[k][p], y = V[k][q]; V[k][p] = c * x - s * y; V[k][q] = s * x + c * y; }
+    }
+  }
+  const orden = [...Array(n).keys()].sort((a, b) => A[b][b] - A[a][a]);
+  return orden.map(j => ({ valor: A[j][j], vector: V.map(r => r[j]) }));
+}
+const punto = (a, b) => { let s = 0; for (let i = 0; i < a.length; i++) s += a[i] * b[i]; return s; };
+const unitario = v => { const n = Math.sqrt(punto(v, v)); return n > 1e-12 ? v.map(x => x / n) : v.map(() => 0); };
+
+// Tema de cada palabra: aquel donde aparece en más frases del texto original (solo para colorear)
+const TEMA_DE = (() => {
+  const cuenta = new Map();
+  BASE.forEach((b, t) => b.frases.forEach(f => new Set(tokenizar(f)).forEach(w => {
+    if (!cuenta.has(w)) cuenta.set(w, new Array(BASE.length).fill(0));
+    cuenta.get(w)[t]++;
+  })));
+  const r = new Map();
+  cuenta.forEach((v, w) => r.set(w, v.indexOf(Math.max(...v))));
+  return r;
+})();
+
+function entrenar(texto) {
+  const lineas = texto.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('#'));
+  const oraciones = lineas.map(t => ({ texto: t, tokens: tokenizar(t) })).filter(o => o.tokens.length);
+  const frec = new Map();
+  oraciones.forEach(o => o.tokens.forEach(w => frec.set(w, (frec.get(w) || 0) + 1)));
+  const vocab = [...frec.keys()].sort((a, b) => frec.get(b) - frec.get(a) || a.localeCompare(b, 'es'));
+  const idx = new Map(vocab.map((w, i) => [w, i])), n = vocab.length;
+  // 1. Contextos: para cada palabra, qué palabras aparecen justo antes y justo después (hasta VENTANA lugares)
+  const C = Array.from({ length: n }, () => new Float64Array(2 * n));
+  oraciones.forEach(o => {
+    const t = o.tokens.map(w => idx.get(w));
+    for (let a = 0; a < t.length; a++) for (let b = Math.max(0, a - VENTANA); b <= Math.min(t.length - 1, a + VENTANA); b++)
+      if (a !== b && t[a] !== t[b]) C[t[a]][t[b] + (b > a ? n : 0)] += 1;
+  });
+  // 2. PMI positivo: ¿aparece ese contexto con esa palabra más de lo esperable por azar?
+  const fila = C.map(r => r.reduce((x, y) => x + y, 0)), col = new Float64Array(2 * n);
+  C.forEach(r => r.forEach((x, j) => { col[j] += x; }));
+  const total = fila.reduce((x, y) => x + y, 0) || 1;
+  const P = C.map((r, i) => Float64Array.from(r, (c, j) => c > 0 ? Math.max(0, Math.log(c * total / (fila[i] * col[j]))) : 0));
+  // 3. Comparar palabras por sus contextos y reducir a DIM números por palabra (factorización)
+  const G = Array.from({ length: n }, (_, i) => Float64Array.from({ length: n }, (_, j) => j < i ? 0 : punto(P[i], P[j])));
+  for (let i = 0; i < n; i++) for (let j = 0; j < i; j++) G[i][j] = G[j][i];
+  const k = Math.min(DIM, n), pares = jacobi(G, n).slice(0, k);
+  const crudo = vocab.map((_, i) => pares.map(p => p.vector[i] * Math.pow(Math.max(p.valor, 0), POT / 2)));
+  const u = crudo.map(unitario);
+  // Proyección a 2D (análisis de componentes principales)
+  const media = Array.from({ length: k }, (_, d) => u.reduce((s, v) => s + v[d], 0) / n);
+  const cov = Array.from({ length: k }, (_, a) => Float64Array.from({ length: k }, (_, b) => u.reduce((s, v) => s + (v[a] - media[a]) * (v[b] - media[b]), 0) / n));
+  const [c1, c2] = jacobi(cov, k);
+  const xy = u.map(v => [0, 1].map(m => { const c = [c1, c2][m].vector; return v.reduce((s, x, d) => s + (x - media[d]) * c[d], 0); }));
+  const maxA = Math.max(...xy.flat().map(Math.abs), 1e-9);
+  // Compresión radial (r^0,6): separa el centro, donde se amontonan las palabras, sin cambiar qué punto queda más cerca de cuál
+  const mapa = xy.map(([x, y]) => { const r = Math.hypot(x, y) / maxA, f = r > 0 ? Math.pow(r, 0.6) / r : 0; return [x / maxA * f, y / maxA * f]; });
+  // Vector de cada frase: promedio de los vectores de sus palabras
+  const vecDe = tokens => { const ids = tokens.filter(t => idx.has(t)).map(t => u[idx.get(t)]);
+    if (!ids.length) return null; return unitario(ids[0].map((_, d) => ids.reduce((s, v) => s + v[d], 0) / ids.length)); };
+  oraciones.forEach(o => { o.vec = vecDe(o.tokens); });
+  return { vocab, idx, frec, u, mapa, oraciones, k, vecDe, nOr: oraciones.length };
+}
+const coseno = (M, a, b) => punto(M.u[M.idx.get(a)], M.u[M.idx.get(b)]);
+function vecinos(M, w, n = 6) {
+  const v = M.u[M.idx.get(w)];
+  return M.vocab.filter(x => x !== w).map(x => ({ w: x, s: punto(v, M.u[M.idx.get(x)]) })).sort((a, b) => b.s - a.s).slice(0, n);
+}
+
+// ===================== Interfaz =====================
+const $ = id => document.getElementById(id);
+const esc = s => s.replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
+const fmt = (v, d = 2) => (Math.round(v * 10 ** d) / 10 ** d).toLocaleString('es-CO', { minimumFractionDigits: d, maximumFractionDigits: d });
+let M = null, pestana = 'palabra', A = 'juez', B = 'magistrado', siguienteClic = 'A', textoActual = TEXTO_BASE, consulta = 'el magistrado revisó la prueba';
+const NS = 'http://www.w3.org/2000/svg', svg = $('mapa');
+const colorDe = w => $('chkColor').checked && TEMA_DE.has(w) ? BASE[TEMA_DE.get(w)].color : '#8a8a8a';
+
+function el(tag, attrs, parent = svg, texto) { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); parent.appendChild(e); if (texto !== undefined) e.textContent = texto; return e; }
+
+function dibujarMapa() {
+  svg.replaceChildren();
+  const W = 680, H = 520, m = 30, X = x => m + (x + 1) / 2 * (W - 2 * m), Y = y => H - m - (y + 1) / 2 * (H - 2 * m);
+  el('rect', { x: m, y: m, width: W - 2 * m, height: H - 2 * m, fill: '#fcfdfc', stroke: '#ddd' });
+  el('text', { x: W / 2, y: H - 8, 'text-anchor': 'middle', 'font-size': 11, fill: '#888' }, svg, 'componente principal 1');
+  el('text', { x: 12, y: H / 2, 'text-anchor': 'middle', 'font-size': 11, fill: '#888', transform: `rotate(-90 12 ${H / 2})` }, svg, 'componente principal 2');
+  const sel = M.idx.has(A) ? A : null, vec = sel ? vecinos(M, sel, 5).map(v => v.w) : [];
+  const nombrar = new Set([...M.vocab.slice(0, 28), ...(sel ? [sel, ...vec] : []), ...(pestana === 'comparar' && M.idx.has(B) ? [B] : [])]);
+  if (sel) for (const v of vec) { const a = M.mapa[M.idx.get(sel)], b = M.mapa[M.idx.get(v)];
+    el('line', { x1: X(a[0]), y1: Y(a[1]), x2: X(b[0]), y2: Y(b[1]), stroke: '#18453B', 'stroke-width': 1.2, 'stroke-dasharray': '4 3', opacity: .6 }); }
+  M.vocab.forEach((w, i) => {
+    const [x, y] = M.mapa[i], esSel = w === sel || (pestana === 'comparar' && w === B);
+    const c = el('circle', { cx: X(x), cy: Y(y), r: esSel ? 8 : 5, fill: colorDe(w), stroke: esSel ? '#000' : '#fff', 'stroke-width': esSel ? 2.5 : 1.2, class: 'pt' });
+    el('title', {}, c, `${w} (aparece ${M.frec.get(w)} veces)`);
+    c.addEventListener('click', () => elegir(w));
+  });
+  const mostrarTodas = $('chkTodas').checked;
+  M.vocab.forEach((w, i) => {
+    if (!mostrarTodas && !nombrar.has(w)) return;
+    const [x, y] = M.mapa[i], destaca = w === sel || vec.includes(w) || (pestana === 'comparar' && w === B);
+    const dy = w === sel ? -10 : (pestana === 'comparar' && w === B) ? 18 : 4;
+    const t = el('text', { x: X(x) + 9, y: Y(y) + dy, 'font-size': destaca ? 13 : 10.5, 'font-weight': destaca ? 700 : 400, fill: '#222', stroke: '#fff', 'stroke-width': 3, 'paint-order': 'stroke', 'pointer-events': 'none' }, svg, w);
+  });
+}
+
+function elegir(w) {
+  if (pestana === 'comparar') { if (siguienteClic === 'A') A = w; else B = w; siguienteClic = siguienteClic === 'A' ? 'B' : 'A'; }
+  else A = w;
+  render();
+}
+
+function barrasDim(v, color) {
+  return v.map((x, d) => `<div class="dim"><span class="et">dim ${d + 1}</span><span class="eje"><i style="background:${color};${x >= 0 ? `left:50%;width:${Math.min(50, x * 50)}%` : `right:50%;width:${Math.min(50, -x * 50)}%`}"></i></span><span class="v">${fmt(x)}</span></div>`).join('');
+}
+const opcionesPalabras = sel => M.vocab.slice().sort((a, b) => a.localeCompare(b, 'es')).map(w => `<option ${w === sel ? 'selected' : ''}>${esc(w)}</option>`).join('');
+
+function vistaPalabra() {
+  if (!M.idx.has(A)) A = M.vocab[0];
+  const i = M.idx.get(A), n = M.vocab.length, vs = vecinos(M, A, 8);
+  const tira = `<svg class="tira" viewBox="0 0 ${n} 10" preserveAspectRatio="none">${Array.from({ length: n }, (_, j) => j === i ? `<rect x="${j}" y="0" width="${Math.max(1, n / 120)}" height="10" fill="#c0392b"/>` : '').join('')}</svg>`;
+  return `<div class="fila"><b>Palabra:</b> <select id="selA">${opcionesPalabras(A)}</select> <span class="pista" style="margin:0">(o haga clic en el mapa)</span></div>
+    <h3 style="margin:10px 0 4px;font-size:.95rem">1. Representación one-hot</h3>
+    <div class="pista" style="margin-top:0">Un vector con una posición por palabra del vocabulario (${n}): todo ceros, salvo un 1.</div>
+    ${tira}
+    <div class="pista">Posición <b>${i + 1}</b> de ${n}. Similitud con cualquier otra palabra: <b>0</b>. «${esc(A)}» es tan distinta de «${esc(vs[0].w)}» como de cualquier otra.</div>
+    <h3 style="margin:14px 0 4px;font-size:.95rem">2. Embedding: ${M.k} números</h3>
+    ${barrasDim(M.u[i], colorDe(A))}
+    <h3 style="margin:14px 0 4px;font-size:.95rem">3. Palabras más cercanas (similitud coseno)</h3>
+    ${vs.map(v => `<div class="vecino" data-w="${esc(v.w)}"><span class="nom">${esc(v.w)}</span><span class="barra"><i style="width:${Math.max(0, v.s) * 100}%"></i></span><span class="num">${fmt(v.s)}</span></div>`).join('')}
+    <div class="pista">Haga clic en una vecina para continuar. 1 = misma dirección; 0 = nada en común.</div>`;
+}
+
+function vistaComparar() {
+  if (!M.idx.has(A)) A = M.vocab[0]; if (!M.idx.has(B)) B = M.vocab[1];
+  const a = M.u[M.idx.get(A)], b = M.u[M.idx.get(B)], cos = punto(a, b), ang = Math.acos(Math.max(-1, Math.min(1, cos))) * 180 / Math.PI;
+  const orden = vecinos(M, A, M.vocab.length), pos = orden.findIndex(v => v.w === B) + 1;
+  const pares = [['juez', 'magistrado'], ['médico', 'doctor'], ['perro', 'gato'], ['juez', 'gato'], ['contrato', 'cláusula'], ['abogado', 'paciente']].filter(([x, y]) => M.idx.has(x) && M.idx.has(y));
+  return `<div class="fila"><b>A:</b> <select id="selA">${opcionesPalabras(A)}</select> <b>B:</b> <select id="selB">${opcionesPalabras(B)}</select></div>
+    <div class="chips">${pares.map(([x, y]) => `<button data-par="${esc(x)}|${esc(y)}">${esc(x)} – ${esc(y)}</button>`).join('')}</div>
+    <div class="pista" style="margin-top:0">También puede hacer clic en dos puntos del mapa (el siguiente clic cambia ${siguienteClic === 'A' ? '<b>A</b>' : '<b>B</b>'}).</div>
+    <div class="dos">
+      <div class="cuadro"><h3 style="margin:0">One-hot</h3><div class="grande">${A === B ? '1,00' : '0,00'}</div><div class="pista" style="margin:0">Dos palabras distintas siempre dan 0.</div></div>
+      <div class="cuadro"><h3 style="margin:0">Embedding (coseno)</h3><div class="grande">${fmt(cos)}</div><div class="pista" style="margin:0">Ángulo entre los vectores: ${fmt(ang, 0)}°.<br>«${esc(B)}» es la vecina n.º <b>${pos || '—'}</b> de «${esc(A)}» entre ${M.vocab.length - 1} palabras.</div></div>
+    </div>
+    <h3 style="margin:12px 0 4px;font-size:.95rem">¿De dónde sale el número?</h3>
+    <div class="pista" style="margin-top:0">cos(A, B) = A · B / (|A| |B|). Con vectores de largo 1, es la suma de los productos dimensión por dimensión:</div>
+    <table><thead><tr><th style="text-align:left">dim</th><th>${esc(A)}</th><th>${esc(B)}</th><th>producto</th></tr></thead><tbody>
+      ${a.map((x, d) => `<tr><td style="text-align:left">${d + 1}</td><td>${fmt(x)}</td><td>${fmt(b[d])}</td><td>${fmt(x * b[d], 3)}</td></tr>`).join('')}
+      <tr><td colspan="3" style="text-align:left"><b>Suma = coseno</b></td><td><b>${fmt(cos, 3)}</b></td></tr></tbody></table>`;
+}
+
+function buscar(q) {
+  const toks = [...new Set(tokenizar(q))], conocidas = toks.filter(t => M.idx.has(t)), desconocidas = toks.filter(t => !M.idx.has(t));
+  const exactas = M.oraciones.map((o, i) => ({ i, n: toks.filter(t => o.tokens.includes(t)).length })).filter(x => x.n > 0).sort((a, b) => b.n - a.n || a.i - b.i).slice(0, 5);
+  const qv = M.vecDe(conocidas);
+  const sem = qv ? M.oraciones.map((o, i) => ({ i, s: o.vec ? punto(qv, o.vec) : -1 })).sort((a, b) => b.s - a.s).slice(0, 5) : [];
+  return { toks, desconocidas, exactas, sem };
+}
+const resaltar = (t, toks) => esc(t).replace(/\p{L}+/gu, w => toks.has(w.toLowerCase()) ? `<mark>${w}</mark>` : w);
+
+function vistaBuscador() {
+  const r = buscar(consulta), s = new Set(r.toks);
+  const sugerencias = ['el magistrado revisó la prueba', 'la jueza condenó', 'el letrado presentó la demanda', 'el doctor cuidó al enfermo', 'el cliente no pagó'];
+  return `<div class="pista" style="margin-top:0">Así funciona la recuperación en RAG: la pregunta y cada frase se convierten en vectores y se devuelven las frases más cercanas.</div>
+    <div class="fila"><input type="text" id="consulta" style="flex:1" value="${esc(consulta)}" placeholder="Escriba una consulta…"><button class="principal" id="irBuscar">Buscar</button></div>
+    <div class="chips">${sugerencias.map(x => `<button data-q="${esc(x)}">${esc(x)}</button>`).join('')}</div>
+    ${r.desconocidas.length ? `<div class="pista" style="color:#a04000">Palabras que el modelo no conoce (no están en el texto de entrenamiento): <b>${r.desconocidas.map(esc).join(', ')}</b>. Es el «problema de la palabra desconocida». Pruebe agregar una frase con ellas en la pestaña «Texto de entrenamiento».</div>` : ''}
+    <div class="dos">
+      <div><h3>Por palabras exactas</h3>${r.exactas.length ? r.exactas.map(x => `<div class="res">${resaltar(M.oraciones[x.i].texto, s)}<small>${x.n} palabra(s) en común</small></div>`).join('') : '<div class="pista">Ninguna frase comparte palabras con la consulta.</div>'}</div>
+      <div><h3>Por significado (embeddings)</h3>${r.sem.length ? r.sem.map(x => { const o = M.oraciones[x.i], com = r.toks.filter(t => o.tokens.includes(t)).length;
+        return `<div class="res sem">${resaltar(o.texto, s)}<small>similitud ${fmt(x.s)}${com ? '' : ' <span class="ins">sin ninguna palabra en común</span>'}</small></div>`; }).join('') : '<div class="pista">El modelo no conoce ninguna palabra de la consulta.</div>'}</div>
+    </div>`;
+}
+
+function vistaCorpus() {
+  return `<div class="pista" style="margin-top:0">Esto es <b>todo</b> lo que el modelo «sabe»: ${M.nOr} frases, ${M.vocab.length} palabras distintas. Edite o agregue frases (una por línea) y entrene de nuevo. Por ejemplo, agregue: <i>«El letrado presentó la demanda ante el tribunal.»</i> y vea dónde cae «letrado».</div>
+    <textarea id="texto" spellcheck="false">${esc(textoActual)}</textarea>
+    <div class="fila" style="margin-top:8px"><button class="principal" id="entrenar">Entrenar de nuevo con este texto</button><button id="restaurar">Restaurar texto original</button></div>
+    <div class="pista"><b>Cómo se entrena:</b> (1) para cada palabra se anotan las palabras que aparecen justo antes y justo después (hasta ${VENTANA} lugares a cada lado); (2) se mide si ese acompañante aparece más de lo esperable por azar (PMI); (3) se comparan las palabras por sus acompañantes y se comprime todo en ${M.k} números por palabra. Dos palabras que se usan en los mismos contextos terminan con vectores parecidos. Es una técnica emparentada con Word2Vec, que aprende algo equivalente con una red neuronal y muchísimo más texto.
+    <br><br><b>Importante:</b> es un texto de juguete. Muchas frases siguen el mismo molde con distintos sujetos (juez, magistrado, jueza…), lo que hace que el modelo aprenda rápido. Un texto real es mucho más variado y por eso se necesitan millones de documentos.</div>`;
+}
+
+function render() {
+  dibujarMapa();
+  document.querySelectorAll('#pestanas button').forEach(b => b.classList.toggle('act', b.dataset.t === pestana));
+  $('contenido').innerHTML = { palabra: vistaPalabra, comparar: vistaComparar, buscador: vistaBuscador, corpus: vistaCorpus }[pestana]();
+  const sa = $('selA'); if (sa) sa.addEventListener('change', e => { A = e.target.value; render(); });
+  const sb = $('selB'); if (sb) sb.addEventListener('change', e => { B = e.target.value; render(); });
+  document.querySelectorAll('.vecino').forEach(v => v.addEventListener('click', () => { A = v.dataset.w; render(); }));
+  document.querySelectorAll('[data-par]').forEach(b => b.addEventListener('click', () => { [A, B] = b.dataset.par.split('|'); render(); }));
+  document.querySelectorAll('[data-q]').forEach(b => b.addEventListener('click', () => { consulta = b.dataset.q; render(); }));
+  const ib = $('irBuscar'); if (ib) { const go = () => { consulta = $('consulta').value; render(); }; ib.addEventListener('click', go); $('consulta').addEventListener('keydown', e => { if (e.key === 'Enter') go(); }); }
+  const en = $('entrenar'); if (en) en.addEventListener('click', () => { textoActual = $('texto').value; M = entrenar(textoActual); render(); });
+  const re = $('restaurar'); if (re) re.addEventListener('click', () => { textoActual = TEXTO_BASE; M = entrenar(textoActual); render(); });
+}
+
+document.querySelectorAll('#pestanas button').forEach(b => b.addEventListener('click', () => { pestana = b.dataset.t; render(); }));
+$('chkColor').addEventListener('change', render); $('chkTodas').addEventListener('change', render);
+$('leyenda').innerHTML = BASE.map(b => `<span><i style="background:${b.color}"></i>${b.tema}</span>`).join('') + '<span><i style="background:#8a8a8a"></i>sin tema</span>';
+
+M = entrenar(textoActual);
+render();
+</script>
+</body>
+</html>
