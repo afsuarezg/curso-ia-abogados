@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Función de una recta — ejemplo interactivo</title>
+<style>
+  :root { --verde:#18453B; --verde-claro:#e8f0ee; --acento:#c0392b; --azul:#1f6fb2; --gris:#666; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; color:#222; background:#f6f8f7; }
+  header { background:var(--verde); color:#fff; padding:14px 24px; }
+  header h1 { margin:0; font-size:1.5rem; font-weight:600; }
+  header p { margin:4px 0 0; opacity:.85; }
+  main { display:flex; flex-wrap:wrap; gap:20px; padding:20px; max-width:1200px; margin:auto; }
+  .grafica { flex:1 1 560px; background:#fff; border-radius:10px; padding:10px; box-shadow:0 1px 4px rgba(0,0,0,.1); }
+  .panel { flex:1 1 320px; display:flex; flex-direction:column; gap:14px; }
+  .tarjeta { background:#fff; border-radius:10px; padding:14px 16px; box-shadow:0 1px 4px rgba(0,0,0,.1); }
+  .tarjeta h2 { margin:0 0 8px; font-size:1rem; color:var(--verde); }
+  label { display:flex; justify-content:space-between; font-weight:600; margin-top:8px; }
+  label span.valor { font-variant-numeric:tabular-nums; color:var(--verde); }
+  input[type=range] { width:100%; accent-color:var(--verde); }
+  .ecuacion { font-size:1.6rem; text-align:center; padding:10px; background:var(--verde-claro); border-radius:8px; font-family:"Cambria Math",Georgia,serif; }
+  .ecuacion .b { color:var(--azul); font-weight:bold; }
+  .ecuacion .w { color:var(--acento); font-weight:bold; }
+  .ecuacion .x { color:#8e44ad; font-weight:bold; }
+  .botones { display:flex; flex-wrap:wrap; gap:8px; }
+  button { border:1px solid var(--verde); background:#fff; color:var(--verde); padding:7px 12px; border-radius:6px; font-size:.9rem; cursor:pointer; }
+  button:hover { background:var(--verde); color:#fff; }
+  ul { margin:0; padding-left:20px; line-height:1.6; }
+  svg text { font-family:inherit; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Función de una recta: y = b + w·x</h1>
+  <p>Variable dependiente = Intercepto + Pendiente × (Variable independiente)</p>
+</header>
+<main>
+  <div class="grafica"><svg id="svg" viewBox="0 0 640 480" width="100%"></svg></div>
+  <div class="panel">
+    <div class="tarjeta">
+      <div class="ecuacion" id="ecuacion"></div>
+    </div>
+    <div class="tarjeta">
+      <h2>Mueva los controles</h2>
+      <label>b — intercepto <span class="valor" id="vb"></span></label>
+      <input type="range" id="b" min="-10" max="20" step="0.5" value="3">
+      <label>w — pendiente (peso o ponderador) <span class="valor" id="vw"></span></label>
+      <input type="range" id="w" min="-5" max="10" step="0.5" value="2">
+      <label>x — variable independiente <span class="valor" id="vx"></span></label>
+      <input type="range" id="x" min="0" max="10" step="0.5" value="4">
+      <div class="botones" style="margin-top:12px">
+        <button data-b="10" data-w="0">Pendiente 0</button>
+        <button data-b="15" data-w="-1.5">Pendiente negativa</button>
+        <button data-b="3" data-w="2">Reiniciar</button>
+      </div>
+    </div>
+    <div class="tarjeta">
+      <h2>¿Qué significa cada parte?</h2>
+      <ul>
+        <li><b>y</b>: variable dependiente (lo que queremos explicar o predecir).</li>
+        <li><b>x</b>: variable independiente (la información que conocemos).</li>
+        <li><b style="color:var(--azul)">b</b>: intercepto, el valor de <i>y</i> cuando <i>x</i> = 0 (punto azul).</li>
+        <li><b style="color:var(--acento)">w</b>: pendiente o peso, cuánto cambia <i>y</i> cuando <i>x</i> aumenta en 1 (triángulo rojo).</li>
+      </ul>
+    </div>
+  </div>
+</main>
+<script>
+const W = 640, H = 480, M = { l:56, r:20, t:20, b:50 };
+const X0 = -1, X1 = 10, Y0 = -20, Y1 = 50;
+const sx = v => M.l + (v - X0) / (X1 - X0) * (W - M.l - M.r);
+const sy = v => H - M.b - (v - Y0) / (Y1 - Y0) * (H - M.t - M.b);
+const svg = document.getElementById('svg');
+const NS = 'http://www.w3.org/2000/svg';
+function el(tag, attrs, parent = svg, text) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (text !== undefined) e.textContent = text;
+  parent.appendChild(e);
+  return e;
+}
+const fmt = v => (Math.round(v * 100) / 100).toLocaleString('es-CO');
+
+// Ejes y cuadrícula (estáticos)
+el('rect', { x:M.l, y:M.t, width:W - M.l - M.r, height:H - M.t - M.b }, el('clipPath', { id:'area' }));
+for (let x = 0; x <= X1; x++) {
+  el('line', { x1:sx(x), x2:sx(x), y1:sy(Y0), y2:sy(Y1), stroke:'#eee' });
+  el('text', { x:sx(x), y:H - M.b + 18, 'text-anchor':'middle', 'font-size':12, fill:'#666' }, svg, x);
+}
+for (let y = Y0; y <= Y1; y += 10) {
+  el('line', { x1:sx(X0), x2:sx(X1), y1:sy(y), y2:sy(y), stroke:'#eee' });
+  el('text', { x:M.l - 8, y:sy(y) + 4, 'text-anchor':'end', 'font-size':12, fill:'#666' }, svg, y);
+}
+el('line', { x1:sx(X0), x2:sx(X1), y1:sy(0), y2:sy(0), stroke:'#333', 'stroke-width':1.5 });
+el('line', { x1:sx(0), x2:sx(0), y1:sy(Y0), y2:sy(Y1), stroke:'#333', 'stroke-width':1.5 });
+el('text', { x:W - M.r, y:H - 10, 'text-anchor':'end', 'font-size':14, 'font-weight':600 }, svg, 'x (variable independiente)');
+el('text', { x:16, y:M.t + 4, transform:`rotate(-90 16 ${M.t + 4})`, 'text-anchor':'end', 'font-size':14, 'font-weight':600 }, svg, 'y (variable dependiente)');
+
+// Capa dinámica
+const capa = el('g', { 'clip-path':'url(#area)' });
+const etiquetas = el('g', {});
+
+const inputs = { b:document.getElementById('b'), w:document.getElementById('w'), x:document.getElementById('x') };
+function dibujar() {
+  const b = +inputs.b.value, w = +inputs.w.value, x = +inputs.x.value, y = b + w * x;
+  document.getElementById('vb').textContent = fmt(b);
+  document.getElementById('vw').textContent = fmt(w);
+  document.getElementById('vx').textContent = fmt(x);
+  document.getElementById('ecuacion').innerHTML =
+    `y = <span class="b">${fmt(b)}</span> + <span class="w">${fmt(w)}</span> · <span class="x">${fmt(x)}</span> = <b>${fmt(y)}</b>`;
+
+  capa.replaceChildren(); etiquetas.replaceChildren();
+  // Recta
+  el('line', { x1:sx(X0), y1:sy(b + w * X0), x2:sx(X1), y2:sy(b + w * X1), stroke:'#18453B', 'stroke-width':3 }, capa);
+  // Triángulo de la pendiente: de x=6 a x=7
+  const tx = 6, ty = b + w * tx;
+  el('path', { d:`M${sx(tx)},${sy(ty)} H${sx(tx + 1)} V${sy(ty + w)}`, fill:'none', stroke:'#c0392b', 'stroke-width':2.5, 'stroke-dasharray':'5 3' }, capa);
+  el('text', { x:(sx(tx) + sx(tx + 1)) / 2, y:sy(ty) + (w >= 0 ? 16 : -8), 'text-anchor':'middle', 'font-size':12, fill:'#c0392b' }, capa, '+1 en x');
+  el('text', { x:sx(tx + 1) + 6, y:(sy(ty) + sy(ty + w)) / 2 + 4, 'font-size':12, fill:'#c0392b', 'font-weight':600 }, capa, `${w >= 0 ? '+' : ''}${fmt(w)} en y`);
+  // Guías del punto (x, y)
+  el('line', { x1:sx(x), y1:sy(0), x2:sx(x), y2:sy(y), stroke:'#8e44ad', 'stroke-dasharray':'4 4' }, capa);
+  el('line', { x1:sx(0), y1:sy(y), x2:sx(x), y2:sy(y), stroke:'#8e44ad', 'stroke-dasharray':'4 4' }, capa);
+  // Intercepto
+  el('circle', { cx:sx(0), cy:sy(b), r:7, fill:'#1f6fb2', stroke:'#fff', 'stroke-width':2 }, capa);
+  el('text', { x:sx(0) + 12, y:sy(b) + (w >= 0 ? 20 : -12), 'font-size':13, fill:'#1f6fb2', 'font-weight':600 }, capa, `intercepto b = ${fmt(b)}`);
+  // Punto (x, y)
+  const visible = y >= Y0 && y <= Y1;
+  el('circle', { cx:sx(x), cy:sy(Math.max(Y0, Math.min(Y1, y))), r:8, fill:'#8e44ad', stroke:'#fff', 'stroke-width':2 }, capa);
+  el('text', { x:sx(x) + 12, y:sy(Math.max(Y0, Math.min(Y1, y))) + 18, 'font-size':13, fill:'#8e44ad', 'font-weight':600 }, capa,
+     visible ? `(${fmt(x)}, ${fmt(y)})` : `(${fmt(x)}, ${fmt(y)}) fuera de la gráfica`);
+}
+for (const k in inputs) inputs[k].addEventListener('input', dibujar);
+document.querySelectorAll('button[data-b]').forEach(btn => btn.addEventListener('click', () => {
+  inputs.b.value = btn.dataset.b; inputs.w.value = btn.dataset.w; dibujar();
+}));
+dibujar();
+</script>
+</body>
+</html>

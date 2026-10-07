@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Regresión lineal — ejemplo interactivo</title>
+<style>
+  :root { --verde:#18453B; --verde-claro:#e8f0ee; --acento:#c0392b; --azul:#1f6fb2; --morado:#8e44ad; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; color:#222; background:#f6f8f7; }
+  header { background:var(--verde); color:#fff; padding:14px 24px; }
+  header h1 { margin:0; font-size:1.5rem; font-weight:600; }
+  header p { margin:4px 0 0; opacity:.85; }
+  main { display:flex; flex-wrap:wrap; gap:20px; padding:20px; max-width:1300px; margin:auto; }
+  .grafica { flex:1 1 600px; background:#fff; border-radius:10px; padding:10px; box-shadow:0 1px 4px rgba(0,0,0,.1); }
+  .panel { flex:1 1 360px; display:flex; flex-direction:column; gap:14px; }
+  .tarjeta { background:#fff; border-radius:10px; padding:14px 16px; box-shadow:0 1px 4px rgba(0,0,0,.1); }
+  .tarjeta h2 { margin:0 0 8px; font-size:1rem; color:var(--verde); }
+  label { display:flex; justify-content:space-between; font-weight:600; margin-top:8px; }
+  label span.valor { font-variant-numeric:tabular-nums; color:var(--verde); }
+  input[type=range] { width:100%; accent-color:var(--verde); }
+  .ecuacion { font-size:1.3rem; text-align:center; padding:8px; background:var(--verde-claro); border-radius:8px; font-family:"Cambria Math",Georgia,serif; }
+  .botones { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+  button { border:1px solid var(--verde); background:#fff; color:var(--verde); padding:7px 12px; border-radius:6px; font-size:.9rem; cursor:pointer; }
+  button:hover, button.activo { background:var(--verde); color:#fff; }
+  .metricas { display:flex; gap:10px; }
+  .metrica { flex:1; text-align:center; padding:10px; border-radius:8px; background:var(--verde-claro); transition:background .3s; }
+  .metrica .num { font-size:1.9rem; font-weight:700; font-variant-numeric:tabular-nums; }
+  .metrica .txt { font-size:.8rem; color:#555; }
+  .pista { font-size:.85rem; color:#555; margin-top:6px; }
+  table { width:100%; border-collapse:collapse; font-size:.85rem; font-variant-numeric:tabular-nums; }
+  th, td { padding:3px 6px; text-align:right; border-bottom:1px solid #eee; }
+  th { color:var(--verde); }
+  td.neg { color:var(--acento); }
+  td.pos { color:var(--azul); }
+  tfoot td { font-weight:700; border-top:2px solid var(--verde); }
+  .reto { background:#fff6e0; border-left:4px solid #e0a800; }
+  svg text { font-family:inherit; }
+  circle.dato { cursor:grab; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Regresión lineal: años de educación y salario</h1>
+  <p>Salario predicho = intercepto + pendiente × (años de educación)</p>
+</header>
+<main>
+  <div class="grafica">
+    <svg id="svg" viewBox="0 0 680 500" width="100%"></svg>
+    <div class="pista">Puede <b>arrastrar los puntos</b> para ver cómo un dato atípico cambia la mejor recta.</div>
+  </div>
+  <div class="panel">
+    <div class="tarjeta reto"><b>Reto:</b> ¿quién logra el <b>menor error cuadrático medio (MSE)</b> moviendo solo los controles?</div>
+    <div class="tarjeta">
+      <div class="ecuacion" id="ecuacion"></div>
+      <label>Intercepto <span class="valor" id="va"></span></label>
+      <input type="range" id="a" min="-10" max="20" step="0.1" value="1">
+      <label>Pendiente <span class="valor" id="vp"></span></label>
+      <input type="range" id="p" min="-2" max="12" step="0.1" value="4">
+      <div class="botones">
+        <button data-a="1" data-p="4">Opción 1 (1; 4)</button>
+        <button data-a="5" data-p="10">Opción 2 (5; 10)</button>
+        <button id="mejor">Mejor ajuste (mínimos cuadrados)</button>
+        <button id="errores" class="activo">Mostrar errores</button>
+        <button id="restaurar">Restaurar datos</button>
+      </div>
+    </div>
+    <div class="tarjeta">
+      <h2>Función de pérdida</h2>
+      <div class="metricas">
+        <div class="metrica" id="mSSE"><div class="num" id="sse"></div><div class="txt">Suma de errores al cuadrado</div></div>
+        <div class="metrica" id="mMSE"><div class="num" id="mse"></div><div class="txt">Error cuadrático medio (MSE)</div></div>
+      </div>
+      <div class="pista" id="comparacion"></div>
+    </div>
+    <div class="tarjeta">
+      <h2>Valor predicho</h2>
+      <label>¿Salario esperado con <span class="valor" id="vq"></span> años de educación?</label>
+      <input type="range" id="q" min="0" max="10" step="1" value="6">
+      <div class="ecuacion" id="prediccion" style="margin-top:8px"></div>
+    </div>
+    <div class="tarjeta">
+      <h2>Error de predicción = valor predicho − valor observado</h2>
+      <table>
+        <thead><tr><th>Educación</th><th>Observado</th><th>Predicho</th><th>Error</th><th>Error²</th></tr></thead>
+        <tbody id="tabla"></tbody>
+        <tfoot><tr><td colspan="4">Suma de errores al cuadrado</td><td id="tsse"></td></tr></tfoot>
+      </table>
+    </div>
+  </div>
+</main>
+<script>
+// Datos de la tabla de la presentación (imagenes/reg_lineal_tabla.png)
+const ORIGINAL = [[1,10],[3,13],[3,15],[4,20],[7,33],[2,17],[4,20],[2,18],[6,38],[5,25]];
+let datos = ORIGINAL.map(d => d.slice());
+
+const W = 680, H = 500, M = { l:60, r:20, t:20, b:50 };
+const X0 = 0, X1 = 10, Y0 = 0, Y1 = 80;
+const sx = v => M.l + (v - X0) / (X1 - X0) * (W - M.l - M.r);
+const sy = v => H - M.b - (v - Y0) / (Y1 - Y0) * (H - M.t - M.b);
+const ix = px => X0 + (px - M.l) / (W - M.l - M.r) * (X1 - X0);
+const iy = py => Y0 + (H - M.b - py) / (H - M.t - M.b) * (Y1 - Y0);
+const svg = document.getElementById('svg');
+const NS = 'http://www.w3.org/2000/svg';
+function el(tag, attrs, parent = svg, text) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (text !== undefined) e.textContent = text;
+  parent.appendChild(e);
+  return e;
+}
+const fmt = (v, d = 2) => (Math.round(v * 10 ** d) / 10 ** d).toLocaleString('es-CO');
+
+// Mínimos cuadrados ordinarios
+function mejorAjuste(ds) {
+  const n = ds.length, mx = ds.reduce((s, d) => s + d[0], 0) / n, my = ds.reduce((s, d) => s + d[1], 0) / n;
+  let sxy = 0, sxx = 0;
+  for (const [x, y] of ds) { sxy += (x - mx) * (y - my); sxx += (x - mx) ** 2; }
+  const p = sxx ? sxy / sxx : 0;
+  return { a: my - p * mx, p };
+}
+const sse = (ds, a, p) => ds.reduce((s, [x, y]) => s + (a + p * x - y) ** 2, 0);
+
+// Ejes y cuadrícula
+el('rect', { x:M.l, y:M.t, width:W - M.l - M.r, height:H - M.t - M.b }, el('clipPath', { id:'area' }));
+for (let x = X0; x <= X1; x++) {
+  el('line', { x1:sx(x), x2:sx(x), y1:sy(Y0), y2:sy(Y1), stroke:'#eee' });
+  el('text', { x:sx(x), y:H - M.b + 18, 'text-anchor':'middle', 'font-size':12, fill:'#666' }, svg, x);
+}
+for (let y = Y0; y <= Y1; y += 10) {
+  el('line', { x1:sx(X0), x2:sx(X1), y1:sy(y), y2:sy(y), stroke:'#eee' });
+  el('text', { x:M.l - 8, y:sy(y) + 4, 'text-anchor':'end', 'font-size':12, fill:'#666' }, svg, y);
+}
+el('line', { x1:sx(X0), x2:sx(X1), y1:sy(Y0), y2:sy(Y0), stroke:'#333', 'stroke-width':1.5 });
+el('line', { x1:sx(X0), x2:sx(X0), y1:sy(Y0), y2:sy(Y1), stroke:'#333', 'stroke-width':1.5 });
+el('text', { x:(sx(X0) + sx(X1)) / 2, y:H - 10, 'text-anchor':'middle', 'font-size':14, 'font-weight':600 }, svg, 'Años de educación');
+el('text', { x:16, y:(sy(Y0) + sy(Y1)) / 2, transform:`rotate(-90 16 ${(sy(Y0) + sy(Y1)) / 2})`, 'text-anchor':'middle', 'font-size':14, 'font-weight':600 }, svg, 'Salario real');
+const capa = el('g', { 'clip-path':'url(#area)' });
+
+const $ = id => document.getElementById(id);
+const ctrl = { a:$('a'), p:$('p'), q:$('q') };
+let A = +ctrl.a.value, P = +ctrl.p.value; // valores exactos (los controles redondean a 0,1)
+let verErrores = true, arrastrando = null, animacion = null;
+
+function dibujar() {
+  const a = A, p = P, q = +ctrl.q.value;
+  ctrl.a.value = a; ctrl.p.value = p;
+  $('va').textContent = fmt(a); $('vp').textContent = fmt(p); $('vq').textContent = q;
+  $('ecuacion').innerHTML = `Salario = <b style="color:var(--azul)">${fmt(a, 1)}</b> + <b style="color:var(--acento)">${fmt(p, 1)}</b> × educación`;
+  const pq = a + p * q;
+  $('prediccion').innerHTML = `${fmt(a, 1)} + ${fmt(p, 1)} × ${q} = <b>${fmt(pq, 1)}</b>`;
+
+  capa.replaceChildren();
+  // Recta
+  el('line', { x1:sx(X0), y1:sy(a + p * X0), x2:sx(X1), y2:sy(a + p * X1), stroke:'#18453B', 'stroke-width':3 }, capa);
+  // Errores
+  if (verErrores) for (const [x, y] of datos) {
+    const yp = a + p * x;
+    el('line', { x1:sx(x), y1:sy(y), x2:sx(x), y2:sy(yp), stroke: yp - y < 0 ? '#c0392b' : '#1f6fb2', 'stroke-width':2.5, opacity:.8 }, capa);
+  }
+  // Predicción consultada
+  el('line', { x1:sx(q), y1:sy(Y0), x2:sx(q), y2:sy(pq), stroke:'#8e44ad', 'stroke-dasharray':'4 4' }, capa);
+  el('line', { x1:sx(X0), y1:sy(pq), x2:sx(q), y2:sy(pq), stroke:'#8e44ad', 'stroke-dasharray':'4 4' }, capa);
+  el('rect', { x:sx(q) - 7, y:sy(pq) - 7, width:14, height:14, fill:'#8e44ad', transform:`rotate(45 ${sx(q)} ${sy(pq)})` }, capa);
+  el('text', { x:sx(q) + 12, y:sy(pq) - 10, 'font-size':13, fill:'#8e44ad', 'font-weight':600 }, capa, `predicho: ${fmt(pq, 1)}`);
+  // Datos observados (arrastrables)
+  datos.forEach(([x, y], i) => {
+    const c = el('circle', { cx:sx(x), cy:sy(y), r:7, fill:'#18453B', 'fill-opacity':.8, stroke:'#fff', 'stroke-width':1.5, class:'dato' }, capa);
+    c.addEventListener('pointerdown', ev => { arrastrando = i; svg.setPointerCapture(ev.pointerId); ev.preventDefault(); });
+  });
+
+  // Tabla y métricas
+  let filas = '', total = 0;
+  for (const [x, y] of datos) {
+    const yp = a + p * x, e = yp - y; total += e * e;
+    filas += `<tr><td>${fmt(x, 1)}</td><td>${fmt(y, 1)}</td><td>${fmt(yp, 1)}</td><td class="${e < 0 ? 'neg' : 'pos'}">${fmt(e, 1)}</td><td>${fmt(e * e, 1)}</td></tr>`;
+  }
+  $('tabla').innerHTML = filas;
+  $('tsse').textContent = fmt(total, 1);
+  const mse = total / datos.length;
+  $('sse').textContent = fmt(total, 1);
+  $('mse').textContent = fmt(mse, 1);
+  const opt = mejorAjuste(datos), mseOpt = sse(datos, opt.a, opt.p) / datos.length;
+  const ratio = mseOpt / mse; // 1 = óptimo, cerca de 0 = muy lejos
+  const color = `hsl(${Math.round(120 * ratio)}, 65%, 88%)`;
+  $('mSSE').style.background = $('mMSE').style.background = color;
+  $('comparacion').textContent = ratio > 0.999
+    ? '¡Esta es la recta con el menor error posible!'
+    : `El menor MSE posible con estos datos es ${fmt(mseOpt, 1)}. Su recta tiene ${fmt(mse / mseOpt, 1)} veces ese error.`;
+}
+
+function animarA(aFin, pFin) {
+  cancelAnimationFrame(animacion);
+  const a0 = A, p0 = P, t0 = performance.now(), dur = 900;
+  const paso = t => {
+    const k = Math.min(1, (t - t0) / dur), s = k * k * (3 - 2 * k);
+    A = a0 + (aFin - a0) * s; P = p0 + (pFin - p0) * s;
+    dibujar();
+    if (k < 1) animacion = requestAnimationFrame(paso);
+  };
+  animacion = requestAnimationFrame(paso);
+}
+
+for (const k in ctrl) ctrl[k].addEventListener('input', () => {
+  cancelAnimationFrame(animacion);
+  if (k === 'a') A = +ctrl.a.value;
+  if (k === 'p') P = +ctrl.p.value;
+  dibujar();
+});
+document.querySelectorAll('button[data-a]').forEach(b => b.addEventListener('click', () => animarA(+b.dataset.a, +b.dataset.p)));
+$('mejor').addEventListener('click', () => {
+  const { a, p } = mejorAjuste(datos);
+  animarA(a, p);
+});
+$('errores').addEventListener('click', e => { verErrores = !verErrores; e.target.classList.toggle('activo', verErrores); dibujar(); });
+$('restaurar').addEventListener('click', () => { datos = ORIGINAL.map(d => d.slice()); dibujar(); });
+
+svg.addEventListener('pointermove', ev => {
+  if (arrastrando === null) return;
+  const pt = new DOMPoint(ev.clientX, ev.clientY).matrixTransform(svg.getScreenCTM().inverse());
+  const x = Math.round(Math.min(X1, Math.max(X0, ix(pt.x))) * 2) / 2;
+  const y = Math.round(Math.min(Y1, Math.max(Y0, iy(pt.y))));
+  datos[arrastrando] = [x, y];
+  dibujar();
+});
+const soltar = () => { arrastrando = null; };
+svg.addEventListener('pointerup', soltar);
+svg.addEventListener('pointercancel', soltar);
+
+dibujar();
+</script>
+</body>
+</html>
