@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ELIZA (1966) — ejemplo interactivo</title>
+<style>
+  :root { --verde:#18453B; --verde-claro:#e8f0ee; --acento:#c0392b; --azul:#1f6fb2; --morado:#8e44ad; --ambar:#e0a800; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; color:#222; background:#f6f8f7; }
+  header { background:var(--verde); color:#fff; padding:14px 24px; }
+  header h1 { margin:0; font-size:1.5rem; font-weight:600; }
+  header p { margin:4px 0 0; opacity:.85; }
+  main { display:flex; flex-wrap:wrap; gap:20px; padding:20px; max-width:1300px; margin:auto; }
+  .columna { flex:1 1 480px; display:flex; flex-direction:column; gap:14px; min-width:0; }
+  .tarjeta { background:#fff; border-radius:10px; padding:14px 16px; box-shadow:0 1px 4px rgba(0,0,0,.1); }
+  .tarjeta h2 { margin:0 0 10px; font-size:1rem; color:var(--verde); }
+  /* Chat */
+  #chat { height:380px; overflow-y:auto; display:flex; flex-direction:column; gap:8px; padding:4px; }
+  .msg { max-width:80%; padding:8px 12px; border-radius:14px; line-height:1.4; cursor:default; }
+  .msg.eliza { align-self:flex-start; background:var(--verde-claro); border-bottom-left-radius:4px; font-family:"Courier New",monospace; }
+  .msg.eliza.clic { cursor:pointer; }
+  .msg.eliza.clic:hover, .msg.eliza.sel { outline:2px solid var(--verde); }
+  .msg.usuario { align-self:flex-end; background:var(--verde); color:#fff; border-bottom-right-radius:4px; }
+  .msg .quien { display:block; font-size:.7rem; font-weight:700; opacity:.7; font-family:-apple-system,"Segoe UI",sans-serif; }
+  form { display:flex; gap:8px; margin-top:10px; }
+  input[type=text] { flex:1; padding:10px 12px; font-size:1rem; border:1px solid #ccc; border-radius:8px; }
+  input[type=text]:focus { outline:2px solid var(--verde); border-color:transparent; }
+  button { border:1px solid var(--verde); background:#fff; color:var(--verde); padding:7px 12px; border-radius:6px; font-size:.9rem; cursor:pointer; }
+  button:hover { background:var(--verde); color:#fff; }
+  button.principal { background:var(--verde); color:#fff; }
+  .sugerencias { display:flex; flex-wrap:wrap; gap:6px; }
+  .sugerencias button { font-size:.85rem; }
+  .pista { font-size:.85rem; color:#555; margin:6px 0 0; }
+  /* Panel de funcionamiento */
+  .paso { border-left:4px solid #ccc; padding:6px 10px; margin-bottom:8px; background:#fafafa; border-radius:0 6px 6px 0; }
+  .paso b.t { display:block; font-size:.8rem; text-transform:uppercase; letter-spacing:.03em; color:#555; margin-bottom:3px; }
+  .paso.p1 { border-color:#999; } .paso.p2 { border-color:var(--azul); } .paso.p3 { border-color:var(--morado); }
+  .paso.p4 { border-color:var(--acento); } .paso.p5 { border-color:var(--ambar); } .paso.p6 { border-color:var(--verde); }
+  code, .mono { font-family:"Courier New",monospace; background:#eef; padding:1px 4px; border-radius:3px; }
+  .clave { display:inline-block; margin:2px 4px 2px 0; padding:2px 8px; border-radius:12px; background:#eee; font-size:.85rem; }
+  .clave.elegida { background:var(--azul); color:#fff; font-weight:700; }
+  .clave.descartada { text-decoration:line-through; opacity:.6; }
+  table.comp { border-collapse:collapse; font-size:.85rem; margin-top:4px; }
+  table.comp td, table.comp th { border:1px solid #ddd; padding:3px 8px; text-align:left; }
+  table.comp th { background:#f0f0f0; }
+  .cambio { color:var(--acento); font-weight:700; }
+  .vacio { color:#999; font-style:italic; }
+  .resultado { font-family:"Courier New",monospace; font-size:1.05rem; background:var(--verde-claro); padding:6px 10px; border-radius:6px; }
+  .nota { background:#fff6e0; border-left:4px solid var(--ambar); }
+  details summary { cursor:pointer; font-weight:600; color:var(--verde); }
+  blockquote { margin:8px 0; padding:6px 12px; border-left:3px solid #ccc; color:#444; font-style:italic; }
+  /* Diálogo de reglas */
+  dialog { width:min(1000px, 95vw); max-height:88vh; border:none; border-radius:10px; padding:0; box-shadow:0 6px 30px rgba(0,0,0,.3); }
+  dialog .cab { position:sticky; top:0; background:var(--verde); color:#fff; padding:12px 16px; display:flex; justify-content:space-between; align-items:center; }
+  dialog .cab button { background:#fff; }
+  dialog .cuerpo { padding:12px 16px; }
+  table.reglas { width:100%; border-collapse:collapse; font-size:.85rem; }
+  table.reglas td, table.reglas th { border-bottom:1px solid #e5e5e5; padding:6px; vertical-align:top; text-align:left; }
+  table.reglas th { color:var(--verde); position:sticky; top:52px; background:#fff; }
+  table.reglas ul { margin:0; padding-left:18px; }
+  .etq { font-size:.7rem; background:var(--ambar); color:#000; border-radius:4px; padding:1px 5px; margin-left:4px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>ELIZA (Weizenbaum, 1966)</h1>
+  <p>Converse con ELIZA y vea, paso a paso, cómo construye cada respuesta sin entender nada.</p>
+</header>
+<main>
+  <div class="columna">
+    <div class="tarjeta">
+      <h2>Conversación</h2>
+      <div id="chat" aria-live="polite"></div>
+      <form id="formulario">
+        <input type="text" id="entrada" placeholder="Escriba aquí y presione Enter…" autocomplete="off">
+        <button class="principal" type="submit">Enviar</button>
+      </form>
+      <p class="pista">Haga clic en cualquier respuesta de ELIZA para ver cómo la construyó.</p>
+    </div>
+    <div class="tarjeta">
+      <h2>Pruebe con estas frases</h2>
+      <div class="sugerencias" id="sugerencias"></div>
+      <div class="sugerencias" style="margin-top:10px">
+        <button id="clasica">▶ Reproducir la conversación clásica</button>
+        <button id="verReglas">Ver todas las reglas de ELIZA</button>
+        <button id="reiniciar">Reiniciar</button>
+      </div>
+    </div>
+    <div class="tarjeta nota">
+      <h2>¿Qué observar?</h2>
+      <ul style="margin:0; padding-left:20px; line-height:1.5">
+        <li>Compare <i>«Mi jefe me engañó»</i> con <i>«Mi gato me engañó»</i>: la regla es la misma; ELIZA no sabe qué es un jefe ni un gato.</li>
+        <li>Si no hay palabra clave (<i>«El clima está agradable hoy»</i>), responde con una frase genérica o con algo que «recordó».</li>
+        <li><b>Efecto ELIZA:</b> aun sabiendo que era un programa, muchas personas le atribuían comprensión y empatía. La secretaria de Weizenbaum le pidió que saliera de la sala para conversar a solas con ELIZA.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="columna">
+    <div class="tarjeta">
+      <h2>¿Cómo funcionó? <span id="turno" style="font-weight:400;color:#777"></span></h2>
+      <div id="panel"><p class="pista">Escriba algo en la conversación para ver aquí el procedimiento.</p></div>
+    </div>
+    <div class="tarjeta">
+      <details>
+        <summary>El procedimiento, según Weizenbaum</summary>
+        <blockquote>«La entrada se lee y se inspecciona en busca de la presencia de una palabra clave. Cuando se encuentra tal palabra, la oración se transforma de acuerdo con una regla asociada con la palabra clave; si no, se recupera una observación libre de contenido o, bajo ciertas condiciones, una transformación anterior.»</blockquote>
+        <ol style="margin:0; padding-left:20px; line-height:1.5">
+          <li><b>Palabra clave:</b> busca palabras de su lista; cada una tiene un <i>rango</i> (prioridad).</li>
+          <li><b>Patrón de descomposición:</b> divide la frase en partes numeradas. <code>*</code> = cualquier secuencia de palabras; <code>@familia</code> = cualquier palabra de un grupo.</li>
+          <li><b>Inversión de pronombres:</b> cambia yo↔tú, mi↔tu, estoy↔estás…</li>
+          <li><b>Plantilla de reensamblado:</b> arma la respuesta con las partes, por ejemplo <code>¿Por qué dices que {2} {3}?</code>. Las plantillas se usan por turnos.</li>
+          <li><b>Sin palabra clave:</b> usa la memoria o una frase genérica.</li>
+        </ol>
+        <p class="pista">Esta es una adaptación al español del guion «DOCTOR» original. Las reglas sobre temas legales se añadieron para este curso.</p>
+      </details>
+    </div>
+  </div>
+</main>
+
+<dialog id="dialogo">
+  <div class="cab"><b>Todas las reglas de ELIZA</b><button id="cerrar">Cerrar</button></div>
+  <div class="cuerpo">
+    <p class="pista">Esto es <b>todo</b> lo que «sabe» ELIZA: una lista de palabras clave, patrones y plantillas de respuesta. No hay ningún otro conocimiento.</p>
+    <table class="reglas"><thead><tr><th>Palabras clave</th><th>Rango</th><th>Patrón</th><th>Respuestas (se usan por turnos)</th></tr></thead><tbody id="tablaReglas"></tbody></table>
+  </div>
+</dialog>
+
+<script>
+// ===================== Motor de ELIZA =====================
+const sinTildes = s => s.normalize('NFD').replace(/[̀-ͯ]/g, '');
+
+const GRUPOS = {
+  familia: ['madre','padre','mamá','papá','hermano','hermana','esposa','esposo','marido','hijo','hija','abuela','abuelo','familia','novio','novia','pareja','tío','tía','primo','prima'],
+  triste:  ['triste','deprimido','deprimida','infeliz','mal','enfermo','enferma','cansado','cansada','preocupado','preocupada','ansioso','ansiosa','solo','sola'],
+  feliz:   ['feliz','contento','contenta','bien','alegre','encantado','encantada'],
+};
+
+// Cada entrada: palabras clave, rango (prioridad) y reglas (patrón + respuestas).
+// En las respuestas, {n} se reemplaza por la parte n del patrón, con los pronombres invertidos.
+const REGLAS = [
+  { claves:['computadora','computadoras','computador','computadores','máquina','máquinas','ordenador','robot','robots','chatgpt'], rango:50, reglas:[
+    { p:'*', r:['¿Te preocupan las computadoras?','¿Por qué mencionas las máquinas?','¿Qué crees que tienen que ver las máquinas con tu problema?','¿No crees que las computadoras pueden ayudar a las personas?','¿Qué es lo que te inquieta de las máquinas?'] } ] },
+  { claves:['nombre'], rango:15, reglas:[
+    { p:'*', r:['No me interesan los nombres.','Ya te dije que los nombres no me interesan. Por favor, continúa.'] } ] },
+  { claves:['abogado','abogada','abogados','juez','jueza','ley','leyes','demanda','contrato','tribunal','juicio'], rango:10, curso:true, reglas:[
+    { p:'*', r:['¿Qué papel tiene la ley en lo que me cuentas?','¿Te preocupa el aspecto legal de todo esto?','¿Crees que un abogado podría resolverlo, o es algo más personal?'] } ] },
+  { claves:['igual','iguales','parecido','parecidos','similar','similares','parece'], rango:10, reglas:[
+    { p:'*', r:['¿En qué sentido?','¿Qué parecido ves?','¿Qué te sugiere esa similitud?','¿Qué otras conexiones ves?'] } ] },
+  { claves:['recuerdo','recuerdas'], rango:5, reglas:[
+    { p:'* recuerdo a *', r:['¿Piensas a menudo en {4}?','¿Recordar a {4} te trae algo más a la mente?','¿Por qué recuerdas a {4} justo ahora?','¿Qué otras cosas recuerdas?'] },
+    { p:'* recuerdo *', r:['¿Piensas a menudo en {3}?','¿Recordar {3} te trae algo más a la mente?','¿Por qué recuerdas {3} justo ahora?','¿Qué otras cosas recuerdas?'] },
+    { p:'* recuerdas *', r:['¿Creías que yo olvidaría {3}?','¿Por qué crees que debería recordar {3}?'] } ] },
+  { claves:['sueño','sueños','soñé'], rango:4, reglas:[
+    { p:'* soñé *', r:['¿De verdad soñaste {3}?','¿Alguna vez has fantaseado con {3} estando despierto?','¿Habías soñado {3} antes?'] },
+    { p:'*', r:['¿Qué te sugiere ese sueño?','¿Sueñas a menudo?','¿Qué personas aparecen en tus sueños?','¿Crees que los sueños tienen que ver con tu problema?'] } ] },
+  { claves:['siento'], rango:3, reglas:[
+    { p:'* lo siento *', r:['Por favor, no te disculpes.','No hace falta disculparse.'] },
+    { p:'* me siento *', r:['Cuéntame más sobre esos sentimientos.','¿Te sientes {4} a menudo?','¿Qué te hace sentir {4}?','¿Disfrutas sintiéndote {4}?'] } ] },
+  { claves:['estoy'], rango:3, reglas:[
+    { p:'* estoy @triste *', r:['Lamento oír que estás {3}.','¿Crees que venir aquí te ayudará a no estar {3}?','Seguro que no es agradable estar {3}.','¿Puedes explicar qué te hizo sentir {3}?'] },
+    { p:'* estoy @feliz *', r:['¿Cómo te he ayudado a estar {3}?','¿Qué te hace estar {3} justo ahora?','¿Puedes explicar por qué de pronto estás {3}?'] },
+    { p:'* estoy *', r:['¿Viniste a verme porque estás {3}?','¿Cuánto tiempo llevas {3}?','¿Crees que es normal estar {3}?','¿Te gusta estar {3}?'] } ] },
+  { claves:['soy'], rango:3, reglas:[
+    { p:'* soy @triste *', r:['¿Crees que venir aquí te ayudará a no ser {3}?','¿Puedes explicar qué te hizo {3}?','Lamento oír que eres {3}.'] },
+    { p:'* soy *', r:['¿Viniste a verme porque eres {3}?','¿Cuánto tiempo llevas siendo {3}?','¿Crees que es normal ser {3}?','¿Te gusta ser {3}?'] } ] },
+  { claves:['quiero','necesito','deseo'], rango:3, reglas:[
+    { p:'* quiero|necesito|deseo *', r:['¿Qué significaría para ti conseguir {3}?','¿Por qué {2} {3}?','Supón que pronto consiguieras {3}. ¿Qué pasaría entonces?','¿Y si nunca consiguieras {3}?'] } ] },
+  { claves:['creo','pienso'], rango:3, reglas:[
+    { p:'* creo|pienso que *', r:['¿De verdad crees que {4}?','¿No estás seguro de que {4}?','¿Dudas de que {4}?'] },
+    { p:'*', r:['¿Por qué lo crees?','¿Estás seguro?'] } ] },
+  { claves:['puedo'], rango:3, reglas:[
+    { p:'* no puedo *', r:['¿Cómo sabes que no puedes {4}?','¿Lo has intentado?','Quizás ahora sí podrías {4}.','¿De verdad quieres poder {4}?'] } ] },
+  { claves:['eres'], rango:3, reglas:[
+    { p:'* eres *', r:['¿Por qué te interesa si soy {3} o no?','¿Preferirías que no fuera {3}?','Quizás soy {3} en tus fantasías.','¿Qué te hace pensar que soy {3}?'] } ] },
+  { claves:['mi','mis'], rango:2, reglas:[
+    { p:'* mi|mis @familia *', r:['¿{2} {3} {4}?','Cuéntame más sobre tu familia.','¿Quién más en tu familia {4}?','¿Qué más te viene a la mente cuando piensas en {2} {3}?'] },
+    { p:'* mi|mis *', r:['¿{2} {3}?','¿Por qué dices que {2} {3}?','¿Eso sugiere algo más que te pertenece?','¿Es importante para ti que {2} {3}?'],
+      memoria:['Antes dijiste que {2} {3}.','¿Tiene eso algo que ver con que {2} {3}?','Hablemos más de por qué {2} {3}.'] } ] },
+  { claves:['todos','nadie'], rango:2, reglas:[
+    { p:'* todos|nadie *', r:['¿De verdad, {2}?','¿Piensas en alguien en particular?','¿En quién estás pensando, concretamente?'] } ] },
+  { claves:['siempre'], rango:1, reglas:[
+    { p:'*', r:['¿Puedes pensar en un ejemplo concreto?','¿Cuándo?','¿En qué ocasión en particular estás pensando?','¿De verdad, siempre?'] } ] },
+  { claves:['nunca'], rango:1, reglas:[
+    { p:'*', r:['¿Nunca?','¿Ni una sola vez?','¿Por qué crees que nunca ha pasado?'] } ] },
+  { claves:['@familia'], rango:1, reglas:[
+    { p:'*', r:['Cuéntame más sobre tu familia.','¿Qué papel juega tu familia en esto?'] } ] },
+  { claves:['tú','tu'], rango:0, reglas:[
+    { p:'* tu me *', r:['¿Por qué crees que yo te {4}?','Te gusta pensar que yo te {4}, ¿verdad?','¿Qué te hace pensar que yo te {4}?'] },
+    { p:'*', r:['Estamos hablando de ti, no de mí.','¿Por qué te interesa hablar de mí?','Hablemos de ti, no de mí.'] } ] },
+  { claves:['porque'], rango:0, reglas:[
+    { p:'*', r:['¿Es esa la verdadera razón?','¿No se te ocurren otras razones?','¿Esa razón explica algo más?','¿Qué otras razones podría haber?'] } ] },
+  { claves:['quizás','quizá'], rango:0, reglas:[
+    { p:'*', r:['No pareces muy seguro.','¿Por qué ese tono de duda?','¿No puedes ser más positivo?'] } ] },
+  { claves:['hola','buenas','buenos'], rango:0, reglas:[
+    { p:'*', r:['Hola. Por favor, cuéntame tu problema.','¿Cómo estás? ¿Qué te preocupa?'] } ] },
+  { claves:['perdón','disculpa','disculpe','disculpas'], rango:0, reglas:[
+    { p:'*', r:['Por favor, no te disculpes.','No hace falta disculparse.'] } ] },
+  { claves:['sí'], rango:0, reglas:[
+    { p:'sí', r:['Pareces muy seguro.','Entiendo.','Ya veo.'] } ] },
+  { claves:['no'], rango:0, reglas:[
+    { p:'no', r:['¿Lo dices solo para ser negativo?','Eso suena un poco negativo.','¿Por qué no?'] } ] },
+  { claves:['adiós','chao'], rango:0, reglas:[
+    { p:'*', r:['Adiós. Gracias por conversar conmigo.'] } ] },
+];
+const GENERICAS = ['Por favor, continúa.','Entiendo. Cuéntame más.','¿Qué te sugiere eso?','¿Puedes desarrollar esa idea?','Eso es muy interesante.','¿Cómo te hace sentir eso?'];
+
+// Inversión de pronombres y verbos (primera ↔ segunda persona)
+const PARES = [['yo','tú'],['me','te'],['mis','tus'],['mí','ti'],['conmigo','contigo'],['mío','tuyo'],['mía','tuya'],['míos','tuyos'],['mías','tuyas'],
+  ['estoy','estás'],['soy','eres'],['tengo','tienes'],['puedo','puedes'],['quiero','quieres'],['siento','sientes'],['necesito','necesitas'],
+  ['creo','crees'],['pienso','piensas'],['odio','odias'],['amo','amas'],['hago','haces'],['voy','vas'],['he','has'],['sé','sabes'],['digo','dices'],
+  ['extraño','extrañas'],['recuerdo','recuerdas'],['temo','temes'],['deseo','deseas'],['entiendo','entiendes'],['era','eras'],['estaba','estabas'],
+  ['fui','fuiste'],['tuve','tuviste'],['hice','hiciste'],['quería','querías'],['podía','podías'],['tenía','tenías']];
+const REFLEJO = { mi:'tu' };              // «tu» se decide según el contexto (ver reflejar)
+for (const [a, b] of PARES) { REFLEJO[a] = b; REFLEJO[b] = a; }
+// Subjuntivo de segunda persona → primera («que me entiendas» → «que te entienda»); solo en esa dirección
+Object.assign(REFLEJO, { entiendas:'entienda', ayudes:'ayude', escuches:'escuche', quieras:'quiera', digas:'diga', creas:'crea', dejes:'deje', hagas:'haga', odies:'odie', ames:'ame' });
+// Formas sin tilde que los usuarios escriben a menudo (se excluyen las ambiguas, como «estas» o «se»)
+const AMBIGUAS = new Set(['estas','se','tu','mi','mas','esta']);
+const REFLEJO_SIN_TILDE = {};
+for (const k in REFLEJO) { const s = sinTildes(k); if (s !== k && !AMBIGUAS.has(s)) REFLEJO_SIN_TILDE[s] = REFLEJO[k]; }
+const SIGUE_A_TU = new Set(['me','te','no','nunca','siempre','también','tambien']);
+
+function reflejar(tokens, siguiente) {
+  return tokens.map((t, i) => {
+    if (t === 'tu') {                     // «tu» sin tilde: ¿pronombre (tú) o posesivo (tu)?
+      const sig = sinTildes(tokens[i + 1] ?? siguiente ?? '');
+      const esVerbo = Object.keys(REFLEJO).some(k => sinTildes(k) === sig && /s$/.test(sig));
+      return SIGUE_A_TU.has(sig) || esVerbo ? 'yo' : 'mi';
+    }
+    if (t === 'tú') return 'yo';
+    return REFLEJO[t] ?? REFLEJO_SIN_TILDE[sinTildes(t)] ?? t;
+  });
+}
+
+// Prepara las reglas: claves y patrones sin tildes, para comparar sin importar cómo se escriba
+const INDICE = new Map();
+REGLAS.forEach(e => {
+  e.reglas.forEach(r => { r.partes = r.p.split(' '); r.turno = 0; if (r.memoria) r.turnoMem = 0; });
+  for (const c of e.claves) {
+    const lista = c.startsWith('@') ? GRUPOS[c.slice(1)] : [c];
+    for (const w of lista) INDICE.set(sinTildes(w), e);
+  }
+});
+const GRUPOS_N = {};
+for (const g in GRUPOS) GRUPOS_N[g] = new Set(GRUPOS[g].map(sinTildes));
+
+function coincide(elemento, token) {
+  if (elemento.startsWith('@')) return GRUPOS_N[elemento.slice(1)].has(token);
+  return elemento.split('|').some(w => sinTildes(w) === token);
+}
+// Devuelve las partes [inicio, fin) de cada elemento del patrón, o null
+function descomponer(partes, toks, pi = 0, ti = 0) {
+  if (pi === partes.length) return ti === toks.length ? [] : null;
+  if (partes[pi] === '*') {
+    for (let k = ti; k <= toks.length; k++) {
+      const resto = descomponer(partes, toks, pi + 1, k);
+      if (resto) return [[ti, k], ...resto];
+    }
+    return null;
+  }
+  if (ti < toks.length && coincide(partes[pi], toks[ti])) {
+    const resto = descomponer(partes, toks, pi + 1, ti + 1);
+    if (resto) return [[ti, ti + 1], ...resto];
+  }
+  return null;
+}
+
+const mayuscula = s => s.replace(/^([¿¡«"]*)(\p{L})/u, (m, a, b) => a + b.toUpperCase());
+
+function ensamblar(plantilla, partesReflejadas) {
+  return mayuscula(plantilla.replace(/\{(\d+)\}/g, (m, n) => partesReflejadas[n - 1].join(' '))
+    .replace(/\s+([?.,!])/g, '$1').replace(/\s{2,}/g, ' ').trim());
+}
+const usaParteVacia = (plantilla, partes) => [...plantilla.matchAll(/\{(\d+)\}/g)].some(m => partes[m[1] - 1].length === 0);
+
+const memoria = [];
+let turnoGenerica = 0;
+
+function responder(texto) {
+  const traza = { entrada: texto };
+  const limpio = texto.toLowerCase();
+  // 1. Dividir en frases (puntuación y «pero»), como hacía ELIZA
+  const frases = limpio.split(/[.,;:!?¡¿()"«»]+|\bpero\b/)
+    .map(f => f.match(/[\p{L}\p{N}]+/gu) || []).filter(f => f.length);
+  traza.frases = frases.map(f => f.join(' '));
+
+  // 2. Buscar palabras clave: se usa la primera frase que contenga alguna
+  let frase = null, encontradas = [];
+  for (const f of frases) {
+    encontradas = [];
+    f.forEach((t, i) => { const e = INDICE.get(sinTildes(t)); if (e && !encontradas.some(x => x.e === e)) encontradas.push({ e, palabra: t, pos: i }); });
+    if (encontradas.length) { frase = f; break; }
+  }
+  traza.frase = frase ? frase.join(' ') : null;
+  encontradas.sort((a, b) => b.e.rango - a.e.rango || a.pos - b.pos);
+  traza.claves = encontradas.map(x => ({ palabra: x.palabra, rango: x.e.rango, curso: x.e.curso }));
+
+  // 3. Probar las reglas de cada palabra clave, de mayor a menor rango
+  if (frase) {
+    const toksN = frase.map(sinTildes);
+    for (const [ci, { e }] of encontradas.entries()) {
+      for (const regla of e.reglas) {
+        const d = descomponer(regla.partes, toksN);
+        if (!d) continue;
+        const original = d.map(([a, b]) => frase.slice(a, b));
+        const reflejadas = d.map(([a, b]) => reflejar(frase.slice(a, b), frase[b]));
+        // Plantilla por turnos, saltando las que necesitan una parte vacía
+        let plantilla = null, indice = 0;
+        for (let k = 0; k < regla.r.length; k++) {
+          const i = (regla.turno + k) % regla.r.length;
+          if (!usaParteVacia(regla.r[i], reflejadas)) { plantilla = regla.r[i]; indice = i; regla.turno = i + 1; break; }
+        }
+        if (!plantilla) continue;
+        let guardado = null;
+        if (regla.memoria && !usaParteVacia(regla.memoria[0], reflejadas)) {
+          guardado = ensamblar(regla.memoria[regla.turnoMem++ % regla.memoria.length], reflejadas);
+          memoria.push(guardado);
+        }
+        Object.assign(traza, { tipo:'regla', elegida: ci, patron: regla.p, original, reflejadas, plantilla,
+          nPlantilla: indice + 1, totalPlantillas: regla.r.length, guardado, respuesta: ensamblar(plantilla, reflejadas) });
+        return traza;
+      }
+      traza.claves[ci].sinPatron = true;
+    }
+  }
+  // 4. Sin regla aplicable: memoria o frase genérica
+  if (memoria.length) {
+    const r = memoria.shift();
+    return Object.assign(traza, { tipo:'memoria', respuesta: r });
+  }
+  const r = GENERICAS[turnoGenerica++ % GENERICAS.length];
+  return Object.assign(traza, { tipo:'generica', respuesta: r });
+}
+
+// ===================== Interfaz =====================
+const $ = id => document.getElementById(id);
+const esc = s => s.replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
+const trazas = [];
+
+function agregar(quien, texto, traza) {
+  const d = document.createElement('div');
+  d.className = 'msg ' + quien;
+  d.innerHTML = `<span class="quien">${quien === 'eliza' ? 'ELIZA' : 'USTED'}</span>${esc(texto)}`;
+  if (traza) {
+    const n = trazas.push(traza);
+    d.classList.add('clic');
+    d.addEventListener('click', () => mostrar(n - 1, d));
+  }
+  $('chat').appendChild(d);
+  $('chat').scrollTop = $('chat').scrollHeight;
+  return d;
+}
+
+function mostrar(n, burbuja) {
+  const t = trazas[n];
+  document.querySelectorAll('.msg.sel').forEach(x => x.classList.remove('sel'));
+  burbuja?.classList.add('sel');
+  $('turno').textContent = `(respuesta ${n + 1})`;
+  let h = `<div class="paso p1"><b class="t">1. Entrada</b>«${esc(t.entrada)}»`;
+  if (t.frases.length > 1) h += `<div class="pista">Dividida en frases: ${t.frases.map(f => `<span class="mono">${esc(f)}</span>`).join(' | ')}. ${t.frase ? `Se analiza solo la primera que tiene una palabra clave: <span class="mono">${esc(t.frase)}</span>` : ''}</div>`;
+  h += `</div>`;
+
+  h += `<div class="paso p2"><b class="t">2. Palabras clave</b>`;
+  if (t.claves.length) {
+    h += t.claves.map((c, i) => `<span class="clave ${i === t.elegida ? 'elegida' : c.sinPatron ? 'descartada' : ''}">${esc(c.palabra)} · rango ${c.rango}${c.curso ? ' · curso' : ''}</span>`).join('');
+    if (t.tipo === 'regla') h += `<div class="pista">Se usa <b>«${esc(t.claves[t.elegida].palabra)}»</b>${t.claves.length > 1 ? ' (mayor rango)' : ''}.${t.claves.some(c => c.sinPatron) ? ' Las tachadas no tenían un patrón que coincidiera.' : ''}</div>`;
+  } else h += `<span class="vacio">Ninguna palabra clave encontrada.</span>`;
+  h += `</div>`;
+
+  if (t.tipo === 'regla') {
+    const partes = t.patron.split(' ');
+    h += `<div class="paso p3"><b class="t">3. Patrón de descomposición</b><code>${esc(t.patron)}</code>
+      <table class="comp"><tr><th>Parte</th>${partes.map((p, i) => `<th>${i + 1}: <span class="mono">${esc(p)}</span></th>`).join('')}</tr>
+      <tr><td>Texto</td>${t.original.map(o => `<td>${o.length ? esc(o.join(' ')) : '<span class="vacio">(vacío)</span>'}</td>`).join('')}</tr></table></div>`;
+
+    const usadas = [...new Set([...t.plantilla.matchAll(/\{(\d+)\}/g)].map(m => +m[1]))];
+    h += `<div class="paso p4"><b class="t">4. Inversión de pronombres</b>`;
+    if (usadas.length) {
+      h += usadas.map(n => {
+        const o = t.original[n - 1], r = t.reflejadas[n - 1];
+        return `<div>Parte ${n}: «${esc(o.join(' '))}» → «${r.map((w, i) => w !== o[i] ? `<span class="cambio">${esc(w)}</span>` : esc(w)).join(' ')}»</div>`;
+      }).join('');
+    } else h += `<span class="vacio">Esta plantilla no usa partes de la frase.</span>`;
+    h += `</div>`;
+
+    h += `<div class="paso p5"><b class="t">5. Plantilla de reensamblado</b><code>${esc(t.plantilla)}</code>
+      <div class="pista">Plantilla ${t.nPlantilla} de ${t.totalPlantillas}; la próxima vez que se use esta regla, ELIZA tomará la siguiente.</div>
+      ${t.guardado ? `<div class="pista">📝 Además guardó en su <b>memoria</b>: «${esc(t.guardado)}», para usarlo cuando no encuentre palabras clave.</div>` : ''}</div>`;
+  } else if (t.tipo === 'memoria') {
+    h += `<div class="paso p5"><b class="t">3. Memoria</b>Como no encontró una regla aplicable, recuperó una frase que había guardado antes, cuando usted habló de algo «suyo» (regla de la palabra «mi»).</div>`;
+  } else {
+    h += `<div class="paso p5"><b class="t">3. Frase genérica</b>Como no encontró una regla aplicable ni tenía nada en memoria, usó una «observación libre de contenido».</div>`;
+  }
+  h += `<div class="paso p6"><b class="t">Respuesta</b><div class="resultado">${esc(t.respuesta)}</div></div>`;
+  $('panel').innerHTML = h;
+}
+
+function enviar(texto) {
+  texto = texto.trim();
+  if (!texto) return;
+  agregar('usuario', texto);
+  const t = responder(texto);
+  const b = agregar('eliza', t.respuesta, t);
+  mostrar(trazas.length - 1, b);
+}
+
+function reiniciar() {
+  $('chat').replaceChildren(); trazas.length = 0; memoria.length = 0; turnoGenerica = 0;
+  REGLAS.forEach(e => e.reglas.forEach(r => { r.turno = 0; if (r.memoria) r.turnoMem = 0; }));
+  $('panel').innerHTML = '<p class="pista">Escriba algo en la conversación para ver aquí el procedimiento.</p>';
+  $('turno').textContent = '';
+  agregar('eliza', 'Hola, soy ELIZA. ¿Qué te preocupa?');
+}
+
+$('formulario').addEventListener('submit', ev => { ev.preventDefault(); enviar($('entrada').value); $('entrada').value = ''; $('entrada').focus(); });
+
+const SUGERENCIAS = ['Mi jefe me engañó.','Mi gato me engañó.','Mi madre me odia.','Me siento muy sola.','Creo que las computadoras pueden pensar.',
+  'Tú me odias.','Necesito un abogado.','El clima está agradable hoy.','No puedo dormir.','Soñé que me perseguían.'];
+for (const s of SUGERENCIAS) {
+  const b = document.createElement('button');
+  b.textContent = s;
+  b.addEventListener('click', () => enviar(s));
+  $('sugerencias').appendChild(b);
+}
+
+const CLASICA = ['Los hombres son todos iguales.','Siempre nos están molestando por algo.','Bueno, mi novio me hizo venir aquí.',
+  'Dice que estoy deprimida casi todo el tiempo.','Es verdad. Soy infeliz.','Necesito ayuda, eso es seguro.'];
+let reproduciendo = false;
+$('clasica').addEventListener('click', async () => {
+  if (reproduciendo) return;
+  reproduciendo = true;
+  reiniciar();
+  for (const s of CLASICA) { await new Promise(r => setTimeout(r, 1100)); enviar(s); }
+  reproduciendo = false;
+});
+$('reiniciar').addEventListener('click', reiniciar);
+
+// Tabla con todas las reglas
+$('tablaReglas').innerHTML = REGLAS.map(e => e.reglas.map((r, i) => `<tr>
+  ${i === 0 ? `<td rowspan="${e.reglas.length}">${e.claves.map(c => c.startsWith('@') ? `<span class="mono">${c}</span> (${GRUPOS[c.slice(1)].join(', ')})` : esc(c)).join(', ')}${e.curso ? '<span class="etq">añadida para el curso</span>' : ''}</td>
+  <td rowspan="${e.reglas.length}">${e.rango}</td>` : ''}
+  <td><code>${esc(r.p)}</code></td>
+  <td><ul>${r.r.map(x => `<li>${esc(x)}</li>`).join('')}${r.memoria ? r.memoria.map(x => `<li>📝 <i>memoria:</i> ${esc(x)}</li>`).join('') : ''}</ul></td></tr>`).join('')).join('')
+  + `<tr><td colspan="2"><i>Sin palabra clave</i></td><td>—</td><td><ul>${GENERICAS.map(x => `<li>${esc(x)}</li>`).join('')}</ul></td></tr>`
+  + `<tr><td colspan="4"><b>Grupos:</b> ${Object.entries(GRUPOS).map(([g, l]) => `<span class="mono">@${g}</span> = ${l.join(', ')}`).join('<br>')}</td></tr>`;
+$('verReglas').addEventListener('click', () => $('dialogo').showModal());
+$('cerrar').addEventListener('click', () => $('dialogo').close());
+
+reiniciar();
+</script>
+</body>
+</html>
