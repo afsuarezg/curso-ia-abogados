@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agrupamiento en K medias — ejemplo interactivo</title>
+<style>
+  :root { --verde:#18453B; --verde-claro:#e8f0ee; --acento:#c0392b; --azul:#1f6fb2; --ambar:#e0a800; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; color:#222; background:#f6f8f7; }
+  header { background:var(--verde); color:#fff; padding:14px 24px; }
+  header h1 { margin:0; font-size:1.5rem; font-weight:600; }
+  header p { margin:4px 0 0; opacity:.85; }
+  main { display:flex; flex-wrap:wrap; gap:20px; padding:20px; max-width:1300px; margin:auto; }
+  .grafica { flex:1 1 600px; background:#fff; border-radius:10px; padding:10px; box-shadow:0 1px 4px rgba(0,0,0,.1); }
+  .panel { flex:1 1 360px; display:flex; flex-direction:column; gap:14px; }
+  .tarjeta { background:#fff; border-radius:10px; padding:14px 16px; box-shadow:0 1px 4px rgba(0,0,0,.1); }
+  .tarjeta h2 { margin:0 0 8px; font-size:1rem; color:var(--verde); }
+  label { display:flex; justify-content:space-between; font-weight:600; margin-top:8px; }
+  label span.valor { color:var(--verde); }
+  input[type=range] { width:100%; accent-color:var(--verde); }
+  select { width:100%; padding:7px; font-size:.95rem; border:1px solid #ccc; border-radius:6px; margin-top:4px; }
+  .botones { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+  button { border:1px solid var(--verde); background:#fff; color:var(--verde); padding:8px 12px; border-radius:6px; font-size:.9rem; cursor:pointer; }
+  button:hover:not(:disabled) { background:var(--verde); color:#fff; }
+  button.principal { background:var(--verde); color:#fff; }
+  button:disabled { opacity:.4; cursor:default; }
+  .pasos { margin:0; padding:0; list-style:none; }
+  .pasos li { padding:6px 10px; border-left:4px solid #ddd; margin-bottom:4px; color:#777; border-radius:0 6px 6px 0; }
+  .pasos li.hecho { color:#222; border-color:#9bb8b0; }
+  .pasos li.actual { background:var(--verde-claro); color:#000; border-color:var(--verde); font-weight:600; }
+  .mensaje { background:#fff6e0; border-left:4px solid var(--ambar); padding:10px 12px; border-radius:0 8px 8px 0; line-height:1.45; }
+  .mensaje.ok { background:#e3f4e8; border-color:#2e8b57; }
+  table { width:100%; border-collapse:collapse; font-size:.9rem; font-variant-numeric:tabular-nums; }
+  th, td { padding:3px 8px; text-align:right; border-bottom:1px solid #eee; }
+  th { color:var(--verde); }
+  .pista { font-size:.85rem; color:#555; margin:6px 0 0; }
+  svg text { font-family:inherit; }
+  .centroide { cursor:grab; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Agrupamiento en K medias (K-means)</h1>
+  <p>Divide los datos en <i>k</i> grupos sin que nadie le diga cuáles son los grupos correctos.</p>
+</header>
+<main>
+  <div class="grafica">
+    <svg id="svg" viewBox="0 0 680 500" width="100%"></svg>
+    <div class="pista">Haga clic en un espacio vacío para <b>agregar un punto</b>. Arrastre un <b>centroide</b> (el cuadrado grande) para cambiar su posición inicial.</div>
+  </div>
+  <div class="panel">
+    <div class="tarjeta">
+      <h2>Datos y número de grupos</h2>
+      <select id="datos">
+        <option value="tres">Tres grupos bien separados</option>
+        <option value="cuatro">Cuatro grupos, algunos cercanos</option>
+        <option value="mezcla">Datos sin grupos claros</option>
+        <option value="lunas">Dos «lunas» (el método falla)</option>
+      </select>
+      <label>k — número de grupos <span class="valor" id="vk"></span></label>
+      <input type="range" id="k" min="2" max="5" step="1" value="3">
+      <div class="botones">
+        <button id="colocar">1. Colocar centroides al azar</button>
+      </div>
+    </div>
+    <div class="tarjeta">
+      <h2>El algoritmo, paso a paso</h2>
+      <ol class="pasos" id="pasos">
+        <li>Selección de centroides iniciales (k puntos al azar)</li>
+        <li>Asignación: cada punto al centroide más cercano</li>
+        <li>Actualización: cada centroide al promedio de su grupo</li>
+        <li>Repetición de los pasos 2 y 3</li>
+        <li>Convergencia: las asignaciones ya no cambian</li>
+      </ol>
+      <div class="mensaje" id="mensaje" style="margin-top:10px"></div>
+      <div class="botones">
+        <button id="paso" class="principal">Siguiente paso</button>
+        <button id="correr">▶ Ejecutar hasta converger</button>
+        <button id="reiniciar">Reiniciar datos</button>
+      </div>
+      <label style="font-weight:400"><span><input type="checkbox" id="lineas" checked> Mostrar la distancia de cada punto a su centroide</span></label>
+    </div>
+    <div class="tarjeta">
+      <h2>¿Qué tan compactos son los grupos?</h2>
+      <table>
+        <thead><tr><th>Iteración</th><th>Suma de distancias² (menor = mejor)</th></tr></thead>
+        <tbody id="historial"><tr><td colspan="2" style="text-align:center;color:#999">Aún no hay asignaciones</td></tr></tbody>
+      </table>
+      <div class="pista">Cada vez que se actualizan los centroides, este número baja o se mantiene: así el algoritmo «mejora» hasta que se detiene.</div>
+    </div>
+    <div class="tarjeta" style="border-left:4px solid var(--ambar)">
+      <h2>Para probar en clase</h2>
+      <ul style="margin:0; padding-left:20px; line-height:1.5">
+        <li>Con «tres grupos» y <i>k</i> = 3, ejecute varias veces: ¿siempre da el mismo resultado?</li>
+        <li>Coloque un centroide inicial lejos, o use <i>k</i> = 2 o 5: ¿cambian los grupos «correctos»?</li>
+        <li>Con «datos sin grupos claros», el algoritmo igual encuentra <i>k</i> grupos: no avisa si no existen.</li>
+        <li>Con las «lunas», los grupos que ve una persona no coinciden con los que encuentra el método.</li>
+      </ul>
+    </div>
+  </div>
+</main>
+<script>
+const COLORES = ['#1f6fb2', '#c0392b', '#2e8b57', '#e0a800', '#8e44ad'];
+const W = 680, H = 500, M = 20;
+const sx = v => M + v / 100 * (W - 2 * M), sy = v => H - M - v / 100 * (H - 2 * M);
+const ix = px => (px - M) / (W - 2 * M) * 100, iy = py => (H - M - py) / (H - 2 * M) * 100;
+const $ = id => document.getElementById(id);
+const svg = $('svg'), NS = 'http://www.w3.org/2000/svg';
+function el(tag, attrs, parent = svg) { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); parent.appendChild(e); return e; }
+const fmt = (v, d = 0) => Math.round(v * 10 ** d) / 10 ** d;
+
+// Generador pseudoaleatorio con semilla: los conjuntos de datos son siempre los mismos
+function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function conjunto(nombre) {
+  const r = rng(nombre.length * 97 + 11), g = () => Math.sqrt(-2 * Math.log(r() || 1e-9)) * Math.cos(2 * Math.PI * r());
+  const pts = [], blob = (cx, cy, s, n) => { for (let i = 0; i < n; i++) pts.push({ x: cx + g() * s, y: cy + g() * s, c: -1 }); };
+  if (nombre === 'tres') { blob(22, 75, 6, 30); blob(75, 70, 6, 30); blob(48, 22, 6, 30); }
+  else if (nombre === 'cuatro') { blob(25, 70, 7, 25); blob(42, 55, 7, 25); blob(75, 75, 7, 25); blob(65, 25, 7, 25); }
+  else if (nombre === 'mezcla') { for (let i = 0; i < 100; i++) pts.push({ x: 8 + r() * 84, y: 8 + r() * 84, c: -1 }); }
+  else { for (let i = 0; i < 60; i++) { const a = Math.PI * i / 59; pts.push({ x: 35 + 28 * Math.cos(a) + g() * 1.8, y: 50 + 28 * Math.sin(a) + g() * 1.8 - 6, c: -1 }); pts.push({ x: 65 - 28 * Math.cos(a) + g() * 1.8, y: 50 - 28 * Math.sin(a) + g() * 1.8 + 6, c: -1 }); } }
+  return pts.map(p => ({ x: Math.min(97, Math.max(3, p.x)), y: Math.min(97, Math.max(3, p.y)), c: -1 }));
+}
+
+// ---- Estado ----
+let puntos = [], cents = [], fase = 'sin', iter = 0, convergido = false, historial = [], corriendo = null, arrastrando = null, acabaDeArrastrar = false;
+// fase: 'sin' (no hay centroides) | 'inicio' (centroides listos) | 'asignado' | 'actualizado'
+
+const dist2 = (a, b) => (a.x - b.x) ** 2 + (a.y - b.y) ** 2;
+const inercia = () => puntos.reduce((s, p) => s + (p.c >= 0 ? dist2(p, cents[p.c]) : 0), 0);
+
+function cargar() { detener(); puntos = conjunto($('datos').value); colocar(); }
+function colocar() {
+  detener();
+  const k = +$('k').value, usados = new Set();
+  cents = [];
+  while (cents.length < k) { const i = Math.floor(Math.random() * puntos.length); if (usados.has(i)) continue; usados.add(i); cents.push({ x: puntos[i].x, y: puntos[i].y }); }
+  puntos.forEach(p => p.c = -1);
+  fase = 'inicio'; iter = 0; convergido = false; historial = [];
+  dibujar();
+}
+function asignar() {
+  let cambios = 0;
+  for (const p of puntos) {
+    let mejor = 0;
+    cents.forEach((c, i) => { if (dist2(p, c) < dist2(p, cents[mejor])) mejor = i; });
+    if (p.c !== mejor) cambios++;
+    p.c = mejor;
+  }
+  iter++; historial.push({ iter, valor: inercia() });
+  fase = 'asignado';
+  if (cambios === 0) convergido = true;
+}
+function actualizar() {
+  cents.forEach((c, i) => {
+    const m = puntos.filter(p => p.c === i);
+    if (m.length) { c.x = m.reduce((s, p) => s + p.x, 0) / m.length; c.y = m.reduce((s, p) => s + p.y, 0) / m.length; }
+  });
+  fase = 'actualizado';
+}
+function paso() {
+  if (convergido) return;
+  if (fase === 'inicio' || fase === 'actualizado') asignar();
+  else if (fase === 'asignado') actualizar();
+  dibujar();
+}
+function detener() { if (corriendo) { clearInterval(corriendo); corriendo = null; } $('correr').textContent = '▶ Ejecutar hasta converger'; }
+function correr() {
+  if (corriendo) { detener(); return; }
+  if (convergido) return;
+  $('correr').textContent = '⏸ Pausar';
+  corriendo = setInterval(() => { paso(); if (convergido) detener(); }, 700);
+}
+
+// ---- Dibujo ----
+function dibujar() {
+  svg.replaceChildren();
+  el('rect', { x: M, y: M, width: W - 2 * M, height: H - 2 * M, fill: '#fcfdfc', stroke: '#ddd' });
+  const mostrarLineas = $('lineas').checked;
+  if (mostrarLineas) for (const p of puntos) if (p.c >= 0) el('line', { x1: sx(p.x), y1: sy(p.y), x2: sx(cents[p.c].x), y2: sy(cents[p.c].y), stroke: COLORES[p.c], 'stroke-width': 1, opacity: .3 });
+  for (const p of puntos) el('circle', { cx: sx(p.x), cy: sy(p.y), r: 5, fill: p.c >= 0 ? COLORES[p.c] : '#999', stroke: '#fff', 'stroke-width': 1.2 });
+  cents.forEach((c, i) => {
+    const g = el('g', { class: 'centroide' });
+    el('rect', { x: sx(c.x) - 11, y: sy(c.y) - 11, width: 22, height: 22, fill: COLORES[i], stroke: '#000', 'stroke-width': 2.5, rx: 3 }, g);
+    el('text', { x: sx(c.x), y: sy(c.y) + 5, 'text-anchor': 'middle', 'font-size': 13, 'font-weight': 700, fill: '#fff' }, g).textContent = i + 1;
+    g.addEventListener('pointerdown', ev => { arrastrando = i; detener(); svg.setPointerCapture(ev.pointerId); ev.stopPropagation(); ev.preventDefault(); });
+  });
+  informe();
+}
+
+function informe() {
+  $('vk').textContent = $('k').value;
+  const activo = convergido ? 4 : fase === 'inicio' ? 0 : fase === 'asignado' ? 1 : fase === 'actualizado' ? 2 : -1;
+  document.querySelectorAll('#pasos li').forEach((li, i) => {
+    li.className = i === activo ? 'actual' : (i < activo || (activo === 4 && i < 4) || (i === 3 && iter > 1 && !convergido)) ? 'hecho' : '';
+  });
+  const m = $('mensaje'); m.className = 'mensaje';
+  if (convergido) { m.classList.add('ok'); m.innerHTML = `<b>¡Convergió en ${iter} iteraciones!</b> Al reasignar, ningún punto cambió de grupo, así que los centroides ya no se mueven. Pruebe «Colocar centroides al azar» otra vez para ver si obtiene el mismo resultado.`; }
+  else if (fase === 'inicio') m.innerHTML = `<b>Paso 1.</b> Se eligieron ${cents.length} puntos al azar como centroides (cuadrados). Presione <b>Siguiente paso</b> para asignar cada punto al centroide más cercano.`;
+  else if (fase === 'asignado') m.innerHTML = `<b>Paso 2 (iteración ${iter}).</b> Cada punto tomó el color del centroide más cercano. Presione <b>Siguiente paso</b> para mover cada centroide al promedio de su grupo.`;
+  else m.innerHTML = `<b>Paso 3 (iteración ${iter}).</b> Los centroides se movieron al centro de sus puntos. Presione <b>Siguiente paso</b> para volver a asignar los puntos (paso 4: repetir).`;
+  $('paso').disabled = convergido; $('correr').disabled = convergido && !corriendo;
+  $('historial').innerHTML = historial.length
+    ? historial.map(h => `<tr><td>${h.iter}</td><td>${fmt(h.valor).toLocaleString('es-CO')}</td></tr>`).join('')
+    : '<tr><td colspan="2" style="text-align:center;color:#999">Aún no hay asignaciones</td></tr>';
+}
+
+// ---- Interacción ----
+svg.addEventListener('pointermove', ev => {
+  if (arrastrando === null) return;
+  const pt = new DOMPoint(ev.clientX, ev.clientY).matrixTransform(svg.getScreenCTM().inverse());
+  cents[arrastrando] = { x: Math.min(100, Math.max(0, ix(pt.x))), y: Math.min(100, Math.max(0, iy(pt.y))) };
+  puntos.forEach(p => p.c = -1); fase = 'inicio'; iter = 0; convergido = false; historial = [];
+  acabaDeArrastrar = true;
+  dibujar();
+});
+const soltar = () => { arrastrando = null; };
+svg.addEventListener('pointerup', soltar); svg.addEventListener('pointercancel', soltar);
+svg.addEventListener('click', ev => {
+  if (acabaDeArrastrar) { acabaDeArrastrar = false; return; }
+  const pt = new DOMPoint(ev.clientX, ev.clientY).matrixTransform(svg.getScreenCTM().inverse());
+  const x = ix(pt.x), y = iy(pt.y);
+  if (x < 0 || x > 100 || y < 0 || y > 100) return;
+  detener(); puntos.push({ x, y, c: -1 });
+  puntos.forEach(p => p.c = -1); fase = 'inicio'; iter = 0; convergido = false; historial = [];
+  dibujar();
+});
+$('datos').addEventListener('change', cargar);
+$('k').addEventListener('input', colocar);
+$('colocar').addEventListener('click', colocar);
+$('reiniciar').addEventListener('click', cargar);
+$('paso').addEventListener('click', () => { detener(); paso(); });
+$('correr').addEventListener('click', correr);
+$('lineas').addEventListener('change', dibujar);
+
+cargar();
+</script>
+</body>
+</html>
