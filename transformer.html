@@ -69,11 +69,11 @@
       <div class="fila" style="margin-top:0">
         <label style="margin:0;font-weight:400;gap:6px;align-items:center">Ejemplo mostrado
           <select id="cual">
-            <option value="">el que está entrenando</option>
-            <option value="el contrato de">el contrato de…</option>
+            <option value="el contrato de" selected>el contrato de…</option>
             <option value="la acción de tutela protege">la acción de tutela protege…</option>
             <option value="la demanda se presenta ante el">la demanda se presenta ante el…</option>
             <option value="el arrendatario paga el">el arrendatario paga el…</option>
+            <option value="">el ejemplo que está entrenando</option>
           </select></label>
       </div>
       <div id="fichas" style="margin-top:10px"></div>
@@ -87,7 +87,7 @@
         <button id="finalizar">Terminar el entrenamiento</button>
         <button id="reiniciar">Reiniciar</button>
         <label style="margin:0;font-weight:400;gap:6px;align-items:center">Velocidad
-          <select id="vel"><option value="10">Lenta</option><option value="100" selected>Normal</option><option value="600">Rápida</option></select></label>
+          <select id="vel"><option value="2">Lenta</option><option value="100" selected>Normal</option><option value="600">Rápida</option></select></label>
       </div>
     </div>
     <div class="tarjeta">
@@ -109,7 +109,7 @@
         <div class="metrica"><div class="num" id="mPesos">–</div><div class="txt">pesos del modelo</div></div>
       </div>
       <svg id="svgPerdida" viewBox="0 0 600 210" width="100%" style="margin-top:8px"></svg>
-      <div class="pista">Escala logarítmica. La pérdida es <b>−log</b> de la probabilidad que el modelo le dio a la palabra correcta: si le dio 100 %, vale 0. Los pesos se ajustan con el mismo <a href="descenso.html">descenso del gradiente</a> de la regresión lineal, solo que aquí hay <span id="pesos2">–</span> números en vez de dos.</div>
+      <div class="pista">Escala logarítmica. La pérdida es <b>−log</b> de la probabilidad que el modelo le dio a la palabra correcta: si le dio 100 %, vale 0. Los pesos se ajustan con una versión mejorada (Adam) del mismo <a href="descenso.html">descenso del gradiente</a> de la regresión lineal, solo que aquí hay <span id="pesos2">–</span> números en vez de dos.</div>
     </div>
     <div class="tarjeta">
       <h2>Escriba un comienzo y deje que el modelo continúe</h2>
@@ -131,7 +131,8 @@
       <ul style="margin:0; padding-left:20px; line-height:1.55">
         <li>Al principio reparte la probabilidad entre todas las palabras por igual: no sabe nada. Cada ejemplo empuja un poco los pesos para que la palabra que de verdad sigue reciba más probabilidad.</li>
         <li>El modelo no responde <i>una</i> palabra: responde una <b>probabilidad para cada palabra</b> del vocabulario. Mire «el contrato de»: en el texto vienen tres continuaciones y el modelo reparte entre las tres.</li>
-        <li>La atención empieza repartida por igual entre las palabras del contexto y se va concentrando en la que más informa.</li>
+        <li>La atención empieza repartida por igual entre las palabras del contexto —0,33 cada una— y se va concentrando en la que más informa: en «el contrato de» acaba fijándose en <b>contrato</b>.</li>
+        <li>En el selector de arriba puede cambiar a «el ejemplo que está entrenando» y ver pasar, uno por uno, los ejemplos con los que el modelo está aprendiendo en ese momento.</li>
         <li>Nadie le enseñó qué es un contrato ni leyó el Código Civil: solo aprendió qué palabras suelen ir juntas. Por eso un modelo grande puede escribir una cita jurídica impecable y falsa — suena a lo que sigue.</li>
         <li>Este modelo es minúsculo: unas 40 frases y unos 4.000 pesos. Los modelos comerciales se entrenan con casi todo el texto público de internet y tienen cientos de miles de millones de pesos. Esa es toda la diferencia: el ejercicio es el mismo.</li>
         <li>Simplificaciones: una sola cabeza de atención y una sola capa, y palabras completas en vez de fragmentos de palabra (los «tokens» de los modelos reales).</li>
@@ -197,12 +198,15 @@ const mv = (M, x) => M.map(r => r.reduce((s, w, i) => s + w * x[i], 0));
 const mvT = (M, y) => { const o = new Array(M[0].length).fill(0); M.forEach((r, i) => r.forEach((w, c) => o[c] += w * y[i])); return o; };
 const NOMS = ['E', 'P', 'Wq', 'Wk', 'Wv', 'Wo', 'bo'];
 
-let V, vocab, ix, frases, ej, M, G, ad, t, orden, cursor, enLote, epoca, pesos, hist, acc, vistos;
+let V, vocab, ix, frases, ej, M, G, ad, t, orden, cursor, enLote, epoca, pesos, hist, acc, vistos, recorte;
 
 const palabras = linea => (linea.toLowerCase().match(/\p{L}+/gu) || []);
 function construir(txt) {
-  frases = txt.split('\n').map(palabras).filter(a => a.length > 1).slice(0, TOPE_FRASES);
-  vocab = [...new Set(frases.flat())].sort((a, b) => a.localeCompare(b, 'es')).slice(0, TOPE_VOCAB);
+  const todas = txt.split('\n').map(palabras).filter(a => a.length > 1);
+  frases = todas.slice(0, TOPE_FRASES);
+  const todoVocab = [...new Set(frases.flat())].sort((a, b) => a.localeCompare(b, 'es'));
+  vocab = todoVocab.slice(0, TOPE_VOCAB);
+  recorte = { frases: todas.length - frases.length, vocab: todoVocab.length - vocab.length };
   ix = {}; vocab.forEach((w, i) => ix[w] = i); V = vocab.length;
   frases = frases.map(f => f.filter(w => ix[w] !== undefined)).filter(f => f.length > 1);
   ej = [];
@@ -308,10 +312,10 @@ const esc = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&
 const NS = 'http://www.w3.org/2000/svg';
 function el(tag, attrs, parent, texto) { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); if (texto !== undefined) e.textContent = texto; return e; }
 
-let corriendo = false, ultimo = 0, acum = 0, ultEj = null, antes = null, finalizando = false;
+let corriendo = false, ultimo = 0, acum = 0, ultEj = null, pend = null, ultCambio = 0, antes = null, finalizando = false;
 
 function arrancar(txt) {
-  corriendo = false; finalizando = false; ultEj = null;
+  corriendo = false; finalizando = false; ultEj = null; pend = null; ultCambio = 0;
   $('jugar').textContent = '▶ Entrenar';
   construir(txt);
   const g = generar('el contrato de', 8, 0.7);
@@ -396,7 +400,8 @@ function pintar() {
   $('mAcc').textContent = acc === null ? '–' : pct(acc, 0);
   $('mPesos').textContent = ent(pesos);
   $('pesos2').textContent = ent(pesos);
-  $('conteos').innerHTML = `${ent(frases.length)} frases · ${ent(frases.flat().length)} palabras · vocabulario de ${ent(V)} palabras distintas · ${ent(ej.length)} ejemplos de «contexto → palabra siguiente» · ${ent(pesos)} pesos por ajustar. Una línea por frase; al cambiar el texto, el modelo empieza de cero.`;
+  $('conteos').innerHTML = `${ent(frases.length)} frases · ${ent(frases.flat().length)} palabras · vocabulario de ${ent(V)} palabras distintas · ${ent(ej.length)} ejemplos de «contexto → palabra siguiente» · ${ent(pesos)} pesos por ajustar. Una línea por frase; al cambiar el texto, el modelo empieza de cero.` +
+    (recorte.frases || recorte.vocab ? ` <b>El texto es muy largo para este ejemplo:</b> se dejaron de lado ${recorte.frases ? ent(recorte.frases) + ' frases' : ''}${recorte.frases && recorte.vocab ? ' y ' : ''}${recorte.vocab ? ent(recorte.vocab) + ' palabras poco frecuentes del final del alfabeto' : ''}, porque la capa de salida crece con el vocabulario.` : '');
   $('vtemp').textContent = fmt(+$('temp').value, 2);
   const fin = termino();
   $('jugar').disabled = $('paso').disabled = $('finalizar').disabled = fin;
@@ -408,7 +413,8 @@ function ciclo(ts) {
   acum += (ts - ultimo) / 1000 * (+$('vel').value); ultimo = ts;
   const t0 = performance.now();
   let k = 0;
-  while (acum >= 1 && corriendo && !termino() && performance.now() - t0 < 8 && k++ < 2000) { const r = unEjemplo(); if (r) ultEj = r; acum -= 1; }
+  while (acum >= 1 && corriendo && !termino() && performance.now() - t0 < 8 && k++ < 2000) { const r = unEjemplo(); if (r) pend = r; acum -= 1; }
+  if (pend && ts - ultCambio > 1200) { ultEj = pend; pend = null; ultCambio = ts; }
   if (termino()) corriendo = false;
   pintar();
   if (corriendo) requestAnimationFrame(ciclo); else $('jugar').textContent = '▶ Entrenar';
@@ -421,14 +427,15 @@ function play() {
 function tajada() {
   if (!finalizando) return;
   const t0 = performance.now();
-  while (performance.now() - t0 < 10 && !termino()) { const r = unEjemplo(); if (r) ultEj = r; }
+  while (performance.now() - t0 < 10 && !termino()) { const r = unEjemplo(); if (r) pend = r; }
+  if (pend) { ultEj = pend; pend = null; }
   pintar();
   if (termino()) { finalizando = false; $('finalizar').textContent = 'Terminar el entrenamiento'; }
   else requestAnimationFrame(tajada);
 }
 
 $('jugar').addEventListener('click', () => { if (corriendo) { corriendo = false; $('jugar').textContent = '▶ Entrenar'; } else play(); });
-$('paso').addEventListener('click', () => { corriendo = false; $('jugar').textContent = '▶ Entrenar'; const r = unEjemplo(); if (r) ultEj = r; pintar(); });
+$('paso').addEventListener('click', () => { corriendo = false; $('jugar').textContent = '▶ Entrenar'; const r = unEjemplo(); if (r) { ultEj = r; pend = null; ultCambio = performance.now(); } pintar(); });
 $('finalizar').addEventListener('click', () => { corriendo = false; $('jugar').textContent = '▶ Entrenar'; finalizando = true; $('finalizar').textContent = 'Entrenando…'; requestAnimationFrame(tajada); });
 $('reiniciar').addEventListener('click', () => arrancar($('corpus').value));
 $('reentrenar').addEventListener('click', () => arrancar($('corpus').value));
