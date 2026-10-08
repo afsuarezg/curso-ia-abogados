@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Entrenar un modelo de lenguaje — ejemplo interactivo</title>
+<style>
+  :root { --verde:#18453B; --verde-claro:#e8f0ee; --azul:#1f6fb2; --rojo:#c0392b; --ambar:#e0a800; --ok:#2e8b57; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; color:#222; background:#f6f8f7; }
+  header { background:var(--verde); color:#fff; padding:14px 24px; }
+  header h1 { margin:0; font-size:1.5rem; font-weight:600; }
+  header p { margin:4px 0 0; opacity:.85; }
+  main { display:flex; flex-wrap:wrap; gap:20px; padding:20px; max-width:1350px; margin:auto; }
+  .col { flex:1 1 540px; display:flex; flex-direction:column; gap:14px; min-width:0; }
+  .tarjeta { background:#fff; border-radius:10px; padding:14px 16px; box-shadow:0 1px 4px rgba(0,0,0,.1); }
+  .tarjeta h2 { margin:0 0 8px; font-size:1rem; color:var(--verde); }
+  .pista { font-size:.85rem; color:#555; margin:6px 0 0; line-height:1.4; }
+  label { display:flex; justify-content:space-between; font-weight:600; margin-top:8px; font-size:.92rem; }
+  label span.valor { color:var(--verde); font-variant-numeric:tabular-nums; }
+  input[type=range] { width:100%; accent-color:var(--verde); }
+  input[type=text] { width:100%; padding:8px; font-size:.95rem; border:1px solid #ccc; border-radius:6px; font-family:inherit; }
+  textarea { width:100%; height:150px; padding:8px; font-size:.85rem; border:1px solid #ccc; border-radius:6px; font-family:ui-monospace,Menlo,Consolas,monospace; line-height:1.45; }
+  select { padding:7px; font-size:.9rem; border:1px solid #ccc; border-radius:6px; max-width:100%; }
+  button { border:1px solid var(--verde); background:#fff; color:var(--verde); padding:8px 12px; border-radius:6px; font-size:.9rem; cursor:pointer; }
+  button:hover:not(:disabled) { background:var(--verde); color:#fff; }
+  button.principal { background:var(--verde); color:#fff; }
+  button:disabled { opacity:.4; cursor:default; }
+  .fila { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:10px; }
+  .mensaje { background:#fff6e0; border-left:4px solid var(--ambar); padding:9px 12px; border-radius:0 8px 8px 0; margin-top:10px; font-size:.92rem; line-height:1.45; }
+  .mensaje.listo { background:#e3f4e8; border-color:var(--ok); }
+  .metricas { display:flex; gap:8px; flex-wrap:wrap; }
+  .metrica { flex:1 1 100px; text-align:center; padding:8px; border-radius:8px; background:var(--verde-claro); }
+  .metrica .num { font-size:1.35rem; font-weight:700; font-variant-numeric:tabular-nums; }
+  .metrica .txt { font-size:.74rem; color:#555; }
+  .formula { background:var(--verde-claro); border-radius:8px; padding:10px 12px; margin-top:8px; font-family:"Cambria Math",Georgia,serif; font-size:1rem; line-height:1.7; font-variant-numeric:tabular-nums; }
+  .leyenda { display:flex; flex-wrap:wrap; gap:4px 14px; font-size:.82rem; margin-top:6px; color:#444; }
+  .leyenda i { display:inline-block; width:11px; height:11px; border-radius:50%; margin-right:5px; vertical-align:middle; }
+  svg text { font-family:inherit; }
+  .nota { border-left:4px solid var(--ambar); }
+  .reto { background:#fff6e0; border-left:4px solid var(--ambar); }
+  table { border-collapse:collapse; width:100%; font-size:.88rem; font-variant-numeric:tabular-nums; margin-top:8px; }
+  th, td { padding:3px 6px; text-align:right; border-bottom:1px solid #eee; }
+  th { color:var(--verde); font-size:.8rem; }
+  td:first-child, th:first-child { text-align:left; font-weight:600; }
+  .ficha { display:inline-block; border-radius:6px; padding:4px 9px; margin:3px 2px; font-weight:600; background:var(--verde-claro); }
+  .ficha.tapada { background:#fff6e0; border:1px dashed var(--ambar); color:#8a6d00; font-weight:400; }
+  .barras { margin-top:8px; }
+  .vecino { display:flex; align-items:center; gap:8px; padding:2px 0; }
+  .vecino .nom { width:150px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .vecino .barra { flex:1; height:13px; background:#eee; border-radius:6px; overflow:hidden; min-width:40px; }
+  .vecino .barra i { display:block; height:100%; background:var(--verde); }
+  .vecino .num { width:58px; text-align:right; font-variant-numeric:tabular-nums; }
+  .vecino.es .nom { color:var(--ok); }
+  .vecino.es .barra i { background:var(--ok); }
+  .salida { background:var(--verde-claro); border-radius:8px; padding:10px 12px; margin-top:8px; line-height:1.6; }
+  .salida .sem { color:#777; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Cómo se entrena un modelo de lenguaje</h1>
+  <p>Un Transformer diminuto que aprende, en su navegador, a predecir la siguiente palabra de un texto jurídico.</p>
+</header>
+<main>
+  <div class="col">
+    <div class="tarjeta">
+      <h2>El ejercicio que se repite millones de veces</h2>
+      <div class="fila" style="margin-top:0">
+        <label style="margin:0;font-weight:400;gap:6px;align-items:center">Ejemplo mostrado
+          <select id="cual">
+            <option value="">el que está entrenando</option>
+            <option value="el contrato de">el contrato de…</option>
+            <option value="la acción de tutela protege">la acción de tutela protege…</option>
+            <option value="la demanda se presenta ante el">la demanda se presenta ante el…</option>
+            <option value="el arrendatario paga el">el arrendatario paga el…</option>
+          </select></label>
+      </div>
+      <div id="fichas" style="margin-top:10px"></div>
+      <div class="barras" id="barras"></div>
+      <div class="formula" id="fPerdida"></div>
+      <div class="pista" id="pistaEj"></div>
+      <div class="mensaje" id="mensaje"></div>
+      <div class="fila">
+        <button class="principal" id="jugar">▶ Entrenar</button>
+        <button id="paso">Un ejemplo</button>
+        <button id="finalizar">Terminar el entrenamiento</button>
+        <button id="reiniciar">Reiniciar</button>
+        <label style="margin:0;font-weight:400;gap:6px;align-items:center">Velocidad
+          <select id="vel"><option value="10">Lenta</option><option value="100" selected>Normal</option><option value="600">Rápida</option></select></label>
+      </div>
+    </div>
+    <div class="tarjeta">
+      <h2>La atención: ¿en qué palabras se fija?</h2>
+      <div id="attFichas"></div>
+      <table id="tAtt"></table>
+      <div class="formula" id="fAtt"></div>
+      <div class="pista">Cada palabra anterior recibe un <b>peso</b>: el modelo decide cuánta información toma de ella. Los pesos salen del softmax y siempre suman 1. La última palabra, además, entra siempre por una vía directa (la conexión residual), así que la atención sirve para traer lo que falta del resto de la frase.</div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="tarjeta">
+      <h2>Cómo baja la pérdida</h2>
+      <div class="metricas">
+        <div class="metrica"><div class="num" id="mVistos">0</div><div class="txt">ejemplos vistos</div></div>
+        <div class="metrica"><div class="num" id="mPerdida">–</div><div class="txt">pérdida</div></div>
+        <div class="metrica"><div class="num" id="mAcc">–</div><div class="txt">aciertos</div></div>
+        <div class="metrica"><div class="num" id="mPesos">–</div><div class="txt">pesos del modelo</div></div>
+      </div>
+      <svg id="svgPerdida" viewBox="0 0 600 210" width="100%" style="margin-top:8px"></svg>
+      <div class="pista">Escala logarítmica. La pérdida es <b>−log</b> de la probabilidad que el modelo le dio a la palabra correcta: si le dio 100 %, vale 0. Los pesos se ajustan con el mismo <a href="descenso.html">descenso del gradiente</a> de la regresión lineal, solo que aquí hay <span id="pesos2">–</span> números en vez de dos.</div>
+    </div>
+    <div class="tarjeta">
+      <h2>Escriba un comienzo y deje que el modelo continúe</h2>
+      <input type="text" id="prompt" value="el contrato de">
+      <label>Temperatura (cuánto se arriesga) <span class="valor" id="vtemp"></span></label>
+      <input type="range" id="temp" min="0.2" max="1.5" step="0.05" value="0.7">
+      <div class="fila" style="margin-top:6px"><button class="principal" id="generar">Generar</button></div>
+      <div class="salida" id="salida"></div>
+      <div class="pista">Con temperatura baja repite siempre la continuación más probable; con temperatura alta se arriesga con palabras menos probables. Es la misma perilla que hace que un asistente no responda igual dos veces.</div>
+    </div>
+    <div class="tarjeta">
+      <h2>El texto de entrenamiento</h2>
+      <textarea id="corpus"></textarea>
+      <div class="fila"><button id="reentrenar">Entrenar de nuevo con este texto</button></div>
+      <div class="pista" id="conteos"></div>
+    </div>
+    <div class="tarjeta nota">
+      <h2>¿Qué observar?</h2>
+      <ul style="margin:0; padding-left:20px; line-height:1.55">
+        <li>Al principio reparte la probabilidad entre todas las palabras por igual: no sabe nada. Cada ejemplo empuja un poco los pesos para que la palabra que de verdad sigue reciba más probabilidad.</li>
+        <li>El modelo no responde <i>una</i> palabra: responde una <b>probabilidad para cada palabra</b> del vocabulario. Mire «el contrato de»: en el texto vienen tres continuaciones y el modelo reparte entre las tres.</li>
+        <li>La atención empieza repartida por igual entre las palabras del contexto y se va concentrando en la que más informa.</li>
+        <li>Nadie le enseñó qué es un contrato ni leyó el Código Civil: solo aprendió qué palabras suelen ir juntas. Por eso un modelo grande puede escribir una cita jurídica impecable y falsa — suena a lo que sigue.</li>
+        <li>Este modelo es minúsculo: unas 40 frases y unos 4.000 pesos. Los modelos comerciales se entrenan con casi todo el texto público de internet y tienen cientos de miles de millones de pesos. Esa es toda la diferencia: el ejercicio es el mismo.</li>
+        <li>Simplificaciones: una sola cabeza de atención y una sola capa, y palabras completas en vez de fragmentos de palabra (los «tokens» de los modelos reales).</li>
+      </ul>
+    </div>
+    <div class="tarjeta reto"><b>Antes de esto:</b> cómo se representan las palabras como números, en el ejemplo de <a href="embeddings.html">embeddings</a>.</div>
+  </div>
+</main>
+
+<script>
+// ============================ MODELO ============================
+const CORPUS = `el contrato de arrendamiento se celebra entre el arrendador y el arrendatario
+el contrato de compraventa se celebra entre el vendedor y el comprador
+el contrato de trabajo se celebra entre el empleador y el trabajador
+la demanda se presenta ante el juez competente
+la demanda se presenta por escrito ante el juez
+el juez competente estudia la demanda y dicta sentencia
+el juez dicta sentencia después de escuchar a las partes
+el abogado representa a su cliente ante el juez
+el abogado presenta la demanda ante el juez competente
+el abogado estudia el contrato de arrendamiento
+la corte constitucional protege los derechos fundamentales
+la corte constitucional estudia la acción de tutela
+la acción de tutela protege los derechos fundamentales
+la acción de tutela se presenta ante el juez
+el derecho a la vida es un derecho fundamental
+el derecho a la igualdad es un derecho fundamental
+los derechos fundamentales protegen a las personas
+el código civil regula el contrato de arrendamiento
+el código civil regula el contrato de compraventa
+el código penal regula el delito y la pena
+la ley regula los derechos de las personas
+la sentencia del juez resuelve el caso
+la sentencia de la corte protege los derechos fundamentales
+el cliente firma el contrato de arrendamiento
+el arrendatario paga el canon de arrendamiento
+el arrendador entrega el inmueble al arrendatario
+el vendedor entrega el bien al comprador
+el comprador paga el precio al vendedor
+el trabajador recibe el salario del empleador
+el empleador paga el salario al trabajador
+las partes firman el contrato ante el notario
+el notario autoriza la escritura pública
+el juez admite la demanda y notifica a las partes
+las partes presentan las pruebas ante el juez
+el juez valora las pruebas y dicta sentencia
+la parte vencida puede apelar la sentencia
+el tribunal estudia la apelación de la sentencia
+la corte suprema resuelve el recurso de casación
+el proceso termina con la sentencia del juez`;
+
+const DIM = 16, VENT = 6, LOTE = 8, LR0 = 0.02, EPOCAS = 40, L2QK = 5e-4;
+const TOPE_FRASES = 400, TOPE_VOCAB = 400;
+
+let rng = 12345;
+const rnd = () => { rng = (rng * 1103515245 + 12345) & 0x7fffffff; return rng / 0x7fffffff - 0.5; };
+let rng2 = 777;
+const u2 = () => { rng2 = (rng2 * 1103515245 + 12345) & 0x7fffffff; return rng2 / 0x7fffffff; };
+const mat = (r, c, s) => Array.from({ length: r }, () => Array.from({ length: c }, () => rnd() * 2 * s));
+const ceros = (r, c) => Array.from({ length: r }, () => new Array(c).fill(0));
+const smax = z => { const m = Math.max(...z), e = z.map(v => Math.exp(v - m)), s = e.reduce((a, b) => a + b, 0); return e.map(v => v / s); };
+const mv = (M, x) => M.map(r => r.reduce((s, w, i) => s + w * x[i], 0));
+const mvT = (M, y) => { const o = new Array(M[0].length).fill(0); M.forEach((r, i) => r.forEach((w, c) => o[c] += w * y[i])); return o; };
+const NOMS = ['E', 'P', 'Wq', 'Wk', 'Wv', 'Wo', 'bo'];
+
+let V, vocab, ix, frases, ej, M, G, ad, t, orden, cursor, enLote, epoca, pesos, hist, acc, vistos;
+
+const palabras = linea => (linea.toLowerCase().match(/\p{L}+/gu) || []);
+function construir(txt) {
+  frases = txt.split('\n').map(palabras).filter(a => a.length > 1).slice(0, TOPE_FRASES);
+  vocab = [...new Set(frases.flat())].sort((a, b) => a.localeCompare(b, 'es')).slice(0, TOPE_VOCAB);
+  ix = {}; vocab.forEach((w, i) => ix[w] = i); V = vocab.length;
+  frases = frases.map(f => f.filter(w => ix[w] !== undefined)).filter(f => f.length > 1);
+  ej = [];
+  for (const f of frases) for (let i = 1; i < f.length; i++) ej.push({ c: f.slice(Math.max(0, i - VENT), i).map(w => ix[w]), y: ix[f[i]] });
+  rng = 12345; rng2 = 777;
+  M = { E: mat(V, DIM, 0.3), P: mat(VENT, DIM, 0.1), Wq: mat(DIM, DIM, 0.3), Wk: mat(DIM, DIM, 0.3), Wv: mat(DIM, DIM, 0.3), Wo: mat(V, DIM, 0.3), bo: new Array(V).fill(0) };
+  pesos = V * DIM + VENT * DIM + 3 * DIM * DIM + V * DIM + V;
+  G = gradCeros(); ad = {}; t = 0; epoca = 0; cursor = 0; enLote = 0; vistos = 0;
+  acc = null; hist = []; mezclar();
+  medir();
+}
+const gradCeros = () => ({ E: ceros(V, DIM), P: ceros(VENT, DIM), Wq: ceros(DIM, DIM), Wk: ceros(DIM, DIM), Wv: ceros(DIM, DIM), Wo: ceros(V, DIM), bo: new Array(V).fill(0) });
+function mezclar() { orden = ej.map((_, i) => i); for (let i = orden.length - 1; i > 0; i--) { const j = Math.floor((rnd() + 0.5) * (i + 1)); [orden[i], orden[j]] = [orden[j], orden[i]]; } }
+
+// Paso hacia adelante: embeddings + posición, una cabeza de atención causal, residual y softmax sobre el vocabulario
+function fwd(ctx) {
+  const n = ctx.length, e = [];
+  for (let j = 0; j < n; j++) e.push(M.E[ctx[j]].map((v, k) => v + M.P[n - 1 - j][k]));
+  const q = mv(M.Wq, e[n - 1]), K = e.map(x => mv(M.Wk, x)), Vv = e.map(x => mv(M.Wv, x));
+  const sc = K.map(k => k.reduce((s, v, i) => s + v * q[i], 0) / Math.sqrt(DIM)), al = smax(sc);
+  const h = new Array(DIM).fill(0);
+  for (let j = 0; j < n; j++) for (let k = 0; k < DIM; k++) h[k] += al[j] * Vv[j][k];
+  const hr = h.map((v, k) => v + e[n - 1][k]);
+  return { e, q, K, Vv, sc, al, hr, p: smax(mv(M.Wo, hr).map((v, i) => v + M.bo[i])), n };
+}
+// Paso hacia atrás: acumula en G el gradiente de la pérdida −log p[y]
+function bwd(ctx, y, f) {
+  const { e, q, K, Vv, al, hr, p, n } = f, dz = p.map((v, i) => v - (i === y ? 1 : 0));
+  for (let i = 0; i < V; i++) { G.bo[i] += dz[i]; for (let k = 0; k < DIM; k++) G.Wo[i][k] += dz[i] * hr[k]; }
+  const dhr = mvT(M.Wo, dz), dh = dhr.slice(), de = ceros(n, DIM);
+  for (let k = 0; k < DIM; k++) de[n - 1][k] += dhr[k];
+  const dal = al.map((_, j) => Vv[j].reduce((s, v, k) => s + dh[k] * v, 0));
+  const dot = al.reduce((s, a, j) => s + a * dal[j], 0), ds = al.map((a, j) => a * (dal[j] - dot)), dq = new Array(DIM).fill(0);
+  for (let j = 0; j < n; j++) {
+    const dv = dh.map(v => al[j] * v);
+    for (let r = 0; r < DIM; r++) for (let c = 0; c < DIM; c++) G.Wv[r][c] += dv[r] * e[j][c];
+    const a1 = mvT(M.Wv, dv); for (let k = 0; k < DIM; k++) de[j][k] += a1[k];
+    const dk = q.map(v => ds[j] * v / Math.sqrt(DIM));
+    for (let r = 0; r < DIM; r++) for (let c = 0; c < DIM; c++) G.Wk[r][c] += dk[r] * e[j][c];
+    const a2 = mvT(M.Wk, dk); for (let k = 0; k < DIM; k++) de[j][k] += a2[k];
+    for (let k = 0; k < DIM; k++) dq[k] += ds[j] * K[j][k] / Math.sqrt(DIM);
+  }
+  for (let r = 0; r < DIM; r++) for (let c = 0; c < DIM; c++) G.Wq[r][c] += dq[r] * e[n - 1][c];
+  const a3 = mvT(M.Wq, dq); for (let k = 0; k < DIM; k++) de[n - 1][k] += a3[k];
+  for (let j = 0; j < n; j++) for (let k = 0; k < DIM; k++) { G.E[ctx[j]][k] += de[j][k]; G.P[n - 1 - j][k] += de[j][k]; }
+}
+// Adam: un paso de actualización de los pesos con el gradiente acumulado del lote
+function aplicar(nLote) {
+  const lr = LR0 * (0.5 + 0.5 * Math.cos(Math.PI * Math.min(1, epoca / EPOCAS))), esc = 1 / nLote; t++;
+  for (const n of NOMS) {
+    const Pm = M[n], Gm = G[n], dos = Array.isArray(Pm[0]), wd = (n === 'Wq' || n === 'Wk') ? L2QK : 0;
+    if (!ad[n]) ad[n] = dos ? { m: ceros(Pm.length, Pm[0].length), v: ceros(Pm.length, Pm[0].length) } : { m: new Array(Pm.length).fill(0), v: new Array(Pm.length).fill(0) };
+    const f = (cur, gv, m, v, i) => { const g = gv * esc + wd * cur; m[i] = 0.9 * m[i] + 0.1 * g; v[i] = 0.999 * v[i] + 0.001 * g * g; return cur - lr * (m[i] / (1 - 0.9 ** t)) / (Math.sqrt(v[i] / (1 - 0.999 ** t)) + 1e-8); };
+    if (dos) Pm.forEach((row, r) => row.forEach((_, c) => Pm[r][c] = f(Pm[r][c], Gm[r][c], ad[n].m[r], ad[n].v[r], c)));
+    else Pm.forEach((_, i) => Pm[i] = f(Pm[i], Gm[i], ad[n].m, ad[n].v, i));
+  }
+  G = gradCeros();
+}
+const TOTAL = () => ej.length * EPOCAS;
+const termino = () => vistos >= TOTAL();
+// Un ejemplo: predecir, medir la pérdida, acumular el gradiente; al completar el lote, ajustar los pesos
+function unEjemplo() {
+  if (termino()) return null;
+  const e = ej[orden[cursor]], f = fwd(e.c), per = -Math.log(Math.max(f.p[e.y], 1e-12));
+  bwd(e.c, e.y, f); enLote++; vistos++;
+  if (enLote === LOTE) { aplicar(enLote); enLote = 0; }
+  cursor++;
+  if (cursor >= orden.length) { if (enLote) { aplicar(enLote); enLote = 0; } cursor = 0; epoca++; mezclar(); medir(); }
+  return { ctx: e.c, y: e.y, f, per };
+}
+function medir() {
+  let s = 0, b = 0;
+  for (const { c, y } of ej) { const p = fwd(c).p; s -= Math.log(Math.max(p[y], 1e-12)); if (p.indexOf(Math.max(...p)) === y) b++; }
+  acc = b / ej.length; hist.push({ ep: epoca, per: s / ej.length, acc });
+  return hist[hist.length - 1];
+}
+// Palabras que de verdad siguen a un contexto, según el texto de entrenamiento
+function continuaciones(ctx) {
+  const c = ctx.slice(-VENT).join(','), m = new Map();
+  for (const e of ej) if (e.c.join(',') === c) m.set(e.y, (m.get(e.y) || 0) + 1);
+  return [...m.entries()].sort((a, b) => b[1] - a[1] || vocab[a[0]].localeCompare(vocab[b[0]], 'es'));
+}
+function generar(texto, n, temp) {
+  const toks = palabras(texto).map(w => ix[w]).filter(i => i !== undefined);
+  if (!toks.length) return null;
+  const sal = toks.slice();
+  for (let i = 0; i < n; i++) {
+    const p = fwd(sal.slice(-VENT)).p, q = p.map(v => Math.pow(v, 1 / temp)), s = q.reduce((a, b) => a + b, 0);
+    let r = u2() * s, k = 0;
+    while (k < V - 1 && (r -= q[k]) > 0) k++;
+    sal.push(k);
+  }
+  return { ini: toks.map(i => vocab[i]), nuevas: sal.slice(toks.length).map(i => vocab[i]) };
+}
+
+// ============================ INTERFAZ ============================
+if (typeof document !== 'undefined') {
+const $ = id => document.getElementById(id);
+const fmt = (v, d = 2) => (Math.round(v * 10 ** d) / 10 ** d).toLocaleString('es-CO', { minimumFractionDigits: d, maximumFractionDigits: d });
+const ent = v => Math.round(v).toLocaleString('es-CO');
+const pct = (v, d = 1) => fmt(v * 100, d) + ' %';
+const esc = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const NS = 'http://www.w3.org/2000/svg';
+function el(tag, attrs, parent, texto) { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); if (texto !== undefined) e.textContent = texto; return e; }
+
+let corriendo = false, ultimo = 0, acum = 0, ultEj = null, antes = null, finalizando = false;
+
+function arrancar(txt) {
+  corriendo = false; finalizando = false; ultEj = null;
+  $('jugar').textContent = '▶ Entrenar';
+  construir(txt);
+  const g = generar('el contrato de', 8, 0.7);
+  antes = g ? g.ini.join(' ') + ' <b>' + g.nuevas.join(' ') + '</b>' : null;
+  $('salida').innerHTML = '<span class="sem">Presione <b>Generar</b>: el modelo irá escogiendo palabra por palabra, siempre según la probabilidad que le dé a cada una.</span>';
+  pintar();
+}
+
+// --- ejemplo mostrado: el del entrenamiento, o un contexto fijado en el selector ---
+function mostrado() {
+  const fijo = $('cual').value;
+  if (fijo) {
+    const ctx = palabras(fijo).map(w => ix[w]).filter(i => i !== undefined).slice(-VENT);
+    if (ctx.length) { const cont = continuaciones(ctx); return { ctx, f: fwd(ctx), cont, y: cont.length ? cont[0][0] : null, fijo: true }; }
+  }
+  if (ultEj) return { ctx: ultEj.ctx, f: ultEj.f, cont: null, y: ultEj.y, fijo: false };
+  const e = ej.find(x => x.c.length >= 3) || ej[0];
+  return { ctx: e.c, f: fwd(e.c), cont: null, y: e.y, fijo: false };
+}
+
+function pintarEjemplo(m) {
+  const { ctx, f, y, cont } = m;
+  $('fichas').innerHTML = ctx.map(i => `<span class="ficha">${esc(vocab[i])}</span>`).join('') +
+    `<span class="ficha tapada">¿qué palabra sigue?</span>`;
+  const top = f.p.map((p, i) => [i, p]).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  const correctas = new Set(cont ? cont.map(c => c[0]) : (y !== null ? [y] : []));
+  $('barras').innerHTML = top.map(([i, p]) =>
+    `<div class="vecino${correctas.has(i) ? ' es' : ''}"><span class="nom">${correctas.has(i) ? '✓ ' : ''}${esc(vocab[i])}</span>` +
+    `<span class="barra"><i style="width:${Math.max(0.4, p * 100).toFixed(1)}%"></i></span><span class="num">${pct(p)}</span></div>`).join('');
+  if (y !== null) {
+    const pc = f.p[y];
+    $('fPerdida').innerHTML = `pérdida de este ejemplo = −log( probabilidad de «<b>${esc(vocab[y])}</b>» )<br>= −log( ${fmt(pc, 3)} ) = <b>${fmt(-Math.log(Math.max(pc, 1e-12)), 2)}</b>`;
+  } else $('fPerdida').innerHTML = '';
+  const lista = cont ? cont.map(([i, n]) => `<b>${esc(vocab[i])}</b>${n > 1 ? ' (' + n + ' veces)' : ''}`).join(', ') : '';
+  $('pistaEj').innerHTML = cont
+    ? (cont.length === 1
+        ? `En el texto de entrenamiento, después de «${esc(ctx.map(i => vocab[i]).join(' '))}» viene siempre ${lista}: un modelo bien entrenado debería darle casi toda la probabilidad.`
+        : `En el texto de entrenamiento, después de «${esc(ctx.map(i => vocab[i]).join(' '))}» vienen estas ${cont.length} palabras: ${lista}. Un modelo bien entrenado debería repartir la probabilidad entre ellas, no apostar todo a una.`)
+    : 'El modelo ve solo las palabras de la izquierda y asigna una probabilidad a cada una de las ' + ent(V) + ' palabras del vocabulario. La marcada con ✓ es la que de verdad seguía.';
+}
+
+function pintarAtencion(m) {
+  const { ctx, f } = m, al = f.al, n = ctx.length;
+  $('attFichas').innerHTML = ctx.map((i, j) => {
+    const a = al[j], claro = a > 0.55;
+    return `<span class="ficha" style="background:rgba(24,69,59,${(0.12 + 0.88 * a).toFixed(2)});color:${claro ? '#fff' : '#222'}">${esc(vocab[i])} <span style="font-weight:400;opacity:.85">${fmt(a, 2)}</span></span>`;
+  }).join('');
+  const filas = ctx.map((i, j) => `<tr><td>${esc(vocab[i])}</td><td>${fmt(f.sc[j], 2)}</td><td>${fmt(al[j], 3)}</td></tr>`).join('');
+  $('tAtt').innerHTML = `<tr><th>palabra anterior</th><th>puntaje (consulta · clave)</th><th>peso</th></tr>${filas}` +
+    `<tr><td style="font-weight:400;color:#666">suma</td><td></td><td><b>${fmt(al.reduce((a, b) => a + b, 0), 3)}</b></td></tr>`;
+  let mj = 0; for (let j = 1; j < n; j++) if (al[j] > al[mj]) mj = j;
+  $('fAtt').innerHTML = `peso = softmax( puntaje ) &nbsp; y &nbsp; puntaje = consulta · clave / √${DIM}<br>` +
+    `La palabra más atendida es «<b>${esc(vocab[ctx[mj]])}</b>», con un peso de <b>${fmt(al[mj], 2)}</b> de 1.`;
+}
+
+function pintarPerdida() {
+  const s = $('svgPerdida'); s.replaceChildren();
+  const w = 600, h = 210, m = { l: 54, r: 12, t: 10, b: 30 };
+  el('rect', { x: m.l, y: m.t, width: w - m.l - m.r, height: h - m.t - m.b, fill: '#fcfdfc', stroke: '#ddd' }, s);
+  const lo = -0.7, hi = Math.log10(6), X = e => m.l + Math.min(1, e / EPOCAS) * (w - m.l - m.r), Y = v => m.t + (hi - Math.max(lo, Math.min(hi, v))) / (hi - lo) * (h - m.t - m.b);
+  for (const v of [0.2, 0.5, 1, 2, 5]) { el('line', { x1: m.l, x2: w - m.r, y1: Y(Math.log10(v)), y2: Y(Math.log10(v)), stroke: '#eee' }, s); el('text', { x: m.l - 6, y: Y(Math.log10(v)) + 4, 'text-anchor': 'end', 'font-size': 11, fill: '#666' }, s, fmt(v, v < 1 ? 1 : 0)); }
+  for (const e of [0, 10, 20, 30, 40]) if (e <= EPOCAS) el('text', { x: X(e), y: h - m.b + 16, 'text-anchor': 'middle', 'font-size': 11, fill: '#666' }, s, e);
+  el('text', { x: (m.l + w - m.r) / 2, y: h - 4, 'text-anchor': 'middle', 'font-size': 11, fill: '#666' }, s, 'pasadas por el texto (épocas) →');
+  if (hist.length > 1) el('path', { d: hist.map((p, i) => (i ? 'L' : 'M') + X(p.ep) + ',' + Y(Math.log10(p.per))).join(''), fill: 'none', stroke: 'var(--verde)', 'stroke-width': 2.5 }, s);
+  const u = hist[hist.length - 1];
+  if (u) el('circle', { cx: X(u.ep), cy: Y(Math.log10(u.per)), r: 4, fill: '#18453B' }, s);
+}
+
+function pintarMensaje() {
+  const n = $('mensaje'); n.className = 'mensaje';
+  const u = hist[hist.length - 1];
+  if (termino()) { n.classList.add('listo'); n.innerHTML = `<b>Entrenamiento terminado:</b> ${ent(vistos)} ejemplos vistos, ${EPOCAS} pasadas por el texto. La pérdida bajó de ${fmt(hist[0].per, 2)} a ${fmt(u.per, 2)} y ahora acierta la palabra siguiente en ${pct(u.acc, 0)} de los casos. Pruebe a generar texto abajo, o escoja «el contrato de» en el selector para ver cómo reparte la probabilidad.`; }
+  else if (vistos === 0) n.innerHTML = `<b>Modelo sin entrenar.</b> Los ${ent(pesos)} pesos son números al azar, así que reparte la probabilidad casi por igual entre las ${ent(V)} palabras: la pérdida vale ${fmt(hist[0].per, 2)}. Presione <b>Entrenar</b>.`;
+  else n.innerHTML = `<b>Ejemplo ${ent(vistos)} de ${ent(TOTAL())}</b> (pasada ${epoca + 1} de ${EPOCAS}). Por cada ejemplo se mide la pérdida y se ajustan los pesos un poco; el lote se aplica cada ${LOTE} ejemplos. Pérdida ${fmt(hist[hist.length - 1].per, 2)} y aciertos ${pct(acc, 0)}, medidos en la última pasada completa.`;
+}
+
+function pintar() {
+  const m = mostrado();
+  pintarEjemplo(m); pintarAtencion(m); pintarPerdida(); pintarMensaje();
+  $('mVistos').textContent = ent(vistos);
+  $('mPerdida').textContent = fmt(hist[hist.length - 1].per, 2);
+  $('mAcc').textContent = acc === null ? '–' : pct(acc, 0);
+  $('mPesos').textContent = ent(pesos);
+  $('pesos2').textContent = ent(pesos);
+  $('conteos').innerHTML = `${ent(frases.length)} frases · ${ent(frases.flat().length)} palabras · vocabulario de ${ent(V)} palabras distintas · ${ent(ej.length)} ejemplos de «contexto → palabra siguiente» · ${ent(pesos)} pesos por ajustar. Una línea por frase; al cambiar el texto, el modelo empieza de cero.`;
+  $('vtemp').textContent = fmt(+$('temp').value, 2);
+  const fin = termino();
+  $('jugar').disabled = $('paso').disabled = $('finalizar').disabled = fin;
+}
+
+// --- animación ---
+function ciclo(ts) {
+  if (!corriendo) return;
+  acum += (ts - ultimo) / 1000 * (+$('vel').value); ultimo = ts;
+  const t0 = performance.now();
+  let k = 0;
+  while (acum >= 1 && corriendo && !termino() && performance.now() - t0 < 8 && k++ < 2000) { const r = unEjemplo(); if (r) ultEj = r; acum -= 1; }
+  if (termino()) corriendo = false;
+  pintar();
+  if (corriendo) requestAnimationFrame(ciclo); else $('jugar').textContent = '▶ Entrenar';
+}
+function play() {
+  corriendo = true; $('jugar').textContent = '⏸ Pausar';
+  ultimo = performance.now(); acum = 1; requestAnimationFrame(ciclo);
+}
+// Terminar: se reparte en tajadas de 10 ms por fotograma para no congelar un celular
+function tajada() {
+  if (!finalizando) return;
+  const t0 = performance.now();
+  while (performance.now() - t0 < 10 && !termino()) { const r = unEjemplo(); if (r) ultEj = r; }
+  pintar();
+  if (termino()) { finalizando = false; $('finalizar').textContent = 'Terminar el entrenamiento'; }
+  else requestAnimationFrame(tajada);
+}
+
+$('jugar').addEventListener('click', () => { if (corriendo) { corriendo = false; $('jugar').textContent = '▶ Entrenar'; } else play(); });
+$('paso').addEventListener('click', () => { corriendo = false; $('jugar').textContent = '▶ Entrenar'; const r = unEjemplo(); if (r) ultEj = r; pintar(); });
+$('finalizar').addEventListener('click', () => { corriendo = false; $('jugar').textContent = '▶ Entrenar'; finalizando = true; $('finalizar').textContent = 'Entrenando…'; requestAnimationFrame(tajada); });
+$('reiniciar').addEventListener('click', () => arrancar($('corpus').value));
+$('reentrenar').addEventListener('click', () => arrancar($('corpus').value));
+$('cual').addEventListener('change', pintar);
+$('temp').addEventListener('input', () => $('vtemp').textContent = fmt(+$('temp').value, 2));
+$('generar').addEventListener('click', () => {
+  const g = generar($('prompt').value, 9, +$('temp').value);
+  if (!g) { $('salida').innerHTML = `<span class="sem">Ninguna de esas palabras está en el texto de entrenamiento. Pruebe con palabras que aparezcan abajo.</span>`; return; }
+  $('salida').innerHTML = `<b>Ahora:</b> ${esc(g.ini.join(' '))} <b>${esc(g.nuevas.join(' '))}</b>` +
+    (antes ? `<br><span class="sem">Antes de entrenar: ${antes.replace(/<\/?b>/g, '')}</span>` : '') +
+    (termino() ? '' : `<br><span class="sem">El modelo aún no termina de entrenar.</span>`);
+});
+$('corpus').value = CORPUS;
+arrancar(CORPUS);
+}
+</script>
+</body>
+</html>
