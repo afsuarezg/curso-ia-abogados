@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Condicionales — ejemplo interactivo</title>
+<style>
+  :root { --verde:#18453B; --verde-claro:#e8f0ee; --azul:#1f6fb2; --rojo:#c0392b; --ambar:#e0a800; --ok:#2e8b57; --morado:#8e44ad; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; color:#222; background:#f6f8f7; }
+  header { background:var(--verde); color:#fff; padding:14px 24px; }
+  header h1 { margin:0; font-size:1.5rem; font-weight:600; }
+  header p { margin:4px 0 0; opacity:.85; }
+  main { display:flex; flex-wrap:wrap; gap:20px; padding:20px; max-width:1350px; margin:auto; }
+  .col { flex:1 1 540px; display:flex; flex-direction:column; gap:14px; min-width:0; }
+  .tarjeta { background:#fff; border-radius:10px; padding:14px 16px; box-shadow:0 1px 4px rgba(0,0,0,.1); }
+  .tarjeta h2 { margin:0 0 8px; font-size:1rem; color:var(--verde); }
+  .pista { font-size:.85rem; color:#555; margin:6px 0 0; line-height:1.4; }
+  .fila { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:10px; }
+  button { border:1px solid var(--verde); background:#fff; color:var(--verde); padding:8px 12px; border-radius:6px; font-size:.9rem; cursor:pointer; font-family:inherit; }
+  button:hover:not(:disabled) { background:var(--verde); color:#fff; }
+  button.principal { background:var(--verde); color:#fff; }
+  button:disabled { opacity:.35; cursor:default; }
+  select { padding:7px; font-size:.9rem; border:1px solid #ccc; border-radius:6px; max-width:100%; font-family:inherit; }
+  input[type=text] { width:100%; padding:8px; font-size:.95rem; border:1px solid #ccc; border-radius:6px; font-family:inherit; }
+  .mensaje { background:#fff6e0; border-left:4px solid var(--ambar); padding:9px 12px; border-radius:0 8px 8px 0; margin-top:10px; font-size:.92rem; line-height:1.45; }
+  .mensaje.si { background:#e3f4e8; border-color:var(--ok); }
+  .mensaje.no { background:#fdecea; border-color:var(--rojo); }
+  .nota { border-left:4px solid var(--ambar); }
+  .reto { background:#fff6e0; border-left:4px solid var(--ambar); }
+  table { border-collapse:collapse; width:100%; font-size:.9rem; margin-top:8px; }
+  th, td { padding:5px 8px; text-align:center; border-bottom:1px solid #eee; }
+  th { color:var(--verde); font-size:.82rem; }
+  td:first-child, th:first-child { text-align:left; }
+  tr.act td { background:var(--verde-claro); font-weight:700; }
+
+  /* hechos del caso: interruptores grandes, legibles desde el fondo del salón */
+  .hecho { display:flex; align-items:center; gap:10px; padding:5px 0; font-size:.95rem; }
+  .hecho .txt { flex:1; min-width:0; }
+  .hecho button { min-width:104px; font-weight:700; padding:5px 10px; }
+  .hecho button.v { border-color:var(--ok); color:var(--ok); }
+  .hecho button.v:hover { background:var(--ok); color:#fff; }
+  .hecho button.f { border-color:var(--rojo); color:var(--rojo); }
+  .hecho button.f:hover { background:var(--rojo); color:#fff; }
+
+  /* la regla, con su supuesto y su consecuencia */
+  .regla { background:var(--verde-claro); border-radius:8px; padding:10px 12px; margin-top:10px; line-height:1.9; }
+  .regla .cab { font-size:.74rem; color:#666; text-transform:uppercase; letter-spacing:.04em; margin-bottom:2px; }
+  .conector { display:inline-block; width:2.6em; color:var(--morado); font-weight:700; }
+  .marca { display:inline-block; min-width:72px; text-align:right; font-weight:700; font-size:.85rem; }
+  .marca.v { color:var(--ok); }
+  .marca.f { color:var(--rojo); }
+  .raya { border-top:1px solid #bcd; margin:8px 0; }
+  .conclu { font-size:1rem; }
+  .conclu.off { opacity:.42; text-decoration:line-through; }
+
+  /* cadena de reglas */
+  .lista { margin-top:8px; }
+  .item { display:flex; gap:8px; align-items:flex-start; padding:7px 9px; border-radius:7px; border:1px solid #eee; margin-bottom:6px; font-size:.9rem; line-height:1.4; }
+  .item .n { width:1.4em; color:#888; font-weight:700; flex:none; }
+  .item .cuerpo { flex:1; min-width:0; }
+  .item .mover { display:flex; flex-direction:column; gap:2px; flex:none; }
+  .item .mover button { padding:1px 7px; font-size:.78rem; line-height:1.3; }
+  .item.gana { border-color:var(--ok); background:#eef8f1; }
+  .item.descartada { color:#999; }
+  .item.descartada .cuerpo { text-decoration:line-through; }
+  .item.nomirada { color:#bbb; }
+  .etq { font-size:.7rem; border-radius:4px; padding:1px 5px; margin-left:6px; vertical-align:1px; white-space:nowrap; }
+  .etq.gana { background:var(--ok); color:#fff; }
+  .etq.no { background:#eee; color:#777; }
+  .etq.nueva { background:#f0e4f7; color:var(--morado); }
+  .etq.rango { background:var(--verde-claro); color:var(--verde); }
+  .salida { background:var(--verde-claro); border-radius:8px; padding:10px 12px; margin-top:10px; line-height:1.5; }
+  .salida .sem { color:#777; }
+  mark { background:#ffe58a; padding:0 1px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Si… entonces: la regla que hay detrás de ELIZA</h1>
+  <p>Un condicional tiene la misma forma que una norma: si se cumple el supuesto de hecho, se sigue la consecuencia.</p>
+</header>
+<main>
+  <div class="col">
+    <div class="tarjeta">
+      <h2>Una regla, evaluada paso a paso</h2>
+      <div class="pista" style="margin:0 0 8px">Los hechos del caso. Haga clic en cada uno para cambiarlo.</div>
+      <div id="hechos1"></div>
+      <div class="regla" id="regla1"></div>
+      <div class="mensaje" id="msg1"></div>
+      <div class="pista">Esta es la Regla 1 del ejemplo de elegibilidad para votar que vimos en clase, con sus tres requisitos unidos por «y».</div>
+    </div>
+
+    <div class="tarjeta">
+      <h2>Y, O, NO: el conector cambia la norma</h2>
+      <div class="fila" style="margin-top:0">
+        <label style="display:flex;gap:6px;align-items:center;font-size:.92rem">Conector
+          <select id="conector">
+            <option value="y">A y B — requisitos copulativos</option>
+            <option value="o">A o B — requisitos alternativos</option>
+            <option value="yno">A y no B — con una excepción</option>
+          </select></label>
+      </div>
+      <div class="pista" style="margin-top:8px"><b>A:</b> tiene 18 años o más &nbsp;·&nbsp; <b>B:</b> su registro está activo</div>
+      <table id="tabla"></table>
+      <div class="mensaje" id="msg2"></div>
+      <div class="pista">La fila resaltada es la que corresponde a los hechos de arriba. Una norma que exige dos requisitos <b>a la vez</b> se aplica a muchas menos personas que una que se conforma con <b>cualquiera de los dos</b>: es la diferencia entre escribir «y» o escribir «o».</div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="tarjeta">
+      <h2>Una cadena de reglas: el orden decide</h2>
+      <div class="pista" style="margin:0 0 8px">Los hechos del caso:</div>
+      <div class="hecho"><span class="txt">Las pruebas son…</span>
+        <select id="pruebas" style="min-width:104px">
+          <option value="contundentes">contundentes</option>
+          <option value="insuficientes" selected>insuficientes</option>
+          <option value="indeterminadas">no permiten determinar</option>
+        </select></div>
+      <div id="hechos3"></div>
+      <div class="lista" id="lista3"></div>
+      <div class="mensaje" id="msg3"></div>
+      <div class="fila"><button id="reset3">Volver al orden original</button></div>
+      <div class="pista">Las reglas se leen de arriba abajo y <b>gana la primera que se cumple</b>: las de abajo ni se miran. Son las reglas de culpabilidad del ejemplo de clase, más una regla general que agregamos para ver qué pasa cuando se la sube de posición.</div>
+    </div>
+
+    <div class="tarjeta">
+      <h2>Esto es todo lo que hace ELIZA</h2>
+      <input type="text" id="frase" value="mi abogado dice que estoy preocupado por el contrato">
+      <div class="fila"><button class="principal" id="responder">Ver qué regla se dispara</button></div>
+      <div class="lista" id="lista4"></div>
+      <div class="salida" id="salida4"></div>
+      <div class="pista">Las reglas se prueban de mayor a menor <b>rango</b>, que es la prioridad que les puso el programador. La regla solo mira si esas letras aparecen en la frase: ELIZA no sabe qué es una madre, ni qué es un contrato. Es el mismo mecanismo del ejemplo de clase que decide el tipo de contrato buscando la palabra «arrendamiento» dentro del texto.</div>
+    </div>
+
+    <div class="tarjeta nota">
+      <h2>¿Qué observar?</h2>
+      <ul style="margin:0; padding-left:20px; line-height:1.55">
+        <li>Cuando la condición es falsa, el condicional <b>no dice nada</b>. No dice lo contrario: dice que esa regla no resuelve el caso. Por eso el ejemplo de clase necesita además una Regla 2 y una Regla 3 para los casos que la primera deja por fuera.</li>
+        <li>Cambiar una «y» por una «o» cambia a quién se le aplica la norma. Es la diferencia entre requisitos copulativos y alternativos, y se decide con una sola palabra.</li>
+        <li>En una cadena, el orden decide: una regla general puesta arriba <b>deja sin efecto</b> a todas las especiales que vengan después.</li>
+        <li>ELIZA es exactamente esto: una lista de reglas «si el texto contiene… entonces responder…», ordenadas por prioridad. No hay nada más adentro.</li>
+        <li>Un sistema de reglas es <b>predecible y auditable</b>: se pueden leer todas, una por una, y saber por qué respondió lo que respondió. Esa es su gran ventaja frente a un modelo que aprende — y, al mismo tiempo, su límite: nadie puede escribir a mano las reglas que harían falta para entender el lenguaje de verdad.</li>
+      </ul>
+    </div>
+    <div class="tarjeta reto"><b>Siga aquí:</b> vea el mecanismo completo, con patrones e inversión de pronombres, <a href="eliza.html">conversando con ELIZA</a>.</div>
+  </div>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const VF = b => b ? 'verdadero' : 'falso';
+
+// ============ 1. Una regla, evaluada paso a paso ============
+// Regla 1 del ejemplo «Elegibilidad para votar» visto en clase.
+const H1 = [
+  { id: 'edad', txt: 'La persona tiene 18 años o más', v: true, premisa: 'la edad es mayor o igual a 18 años' },
+  { id: 'nac', txt: 'Su nacionalidad es «ciudadano»', v: true, premisa: 'la nacionalidad es «ciudadano»' },
+  { id: 'reg', txt: 'Su registro está «activo»', v: false, premisa: 'el registro está «activo»' },
+];
+function pintarHechos(cont, hechos, alCambiar) {
+  cont.innerHTML = hechos.map((h, i) =>
+    `<div class="hecho"><span class="txt">${esc(h.txt)}</span>` +
+    `<button data-i="${i}" class="${h.v ? 'v' : 'f'}">${h.v ? '✓ verdadero' : '✗ falso'}</button></div>`).join('');
+  cont.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+    hechos[+b.dataset.i].v = !hechos[+b.dataset.i].v;
+    pintarHechos(cont, hechos, alCambiar); alCambiar();
+  }));
+}
+function pintar1() {
+  const todas = H1.every(h => h.v), falsas = H1.filter(h => !h.v);
+  $('regla1').innerHTML =
+    `<div class="cab">Supuesto de hecho</div>` +
+    H1.map((h, i) => `<div><span class="conector">${i ? 'y' : 'SI'}</span> ${esc(h.premisa)} ` +
+      `<span class="marca ${h.v ? 'v' : 'f'}">${VF(h.v)}</span></div>`).join('') +
+    `<div class="raya"></div>` +
+    `<div>La condición completa es <span class="marca ${todas ? 'v' : 'f'}">${VF(todas)}</span></div>` +
+    `<div class="cab" style="margin-top:8px">Consecuencia</div>` +
+    `<div class="conclu${todas ? '' : ' off'}"><span class="conector">${todas ? '⇒' : '⇒'}</span> el votante es elegible para votar</div>`;
+  const m = $('msg1'); m.className = 'mensaje ' + (todas ? 'si' : 'no');
+  m.innerHTML = todas
+    ? '<b>La regla se aplica.</b> Las tres premisas son verdaderas, así que la condición entera lo es y la consecuencia se sigue: esta persona es elegible para votar. Apague cualquiera de los tres hechos para ver qué pasa.'
+    : `<b>La regla no se aplica.</b> Con «y» basta con que ${falsas.length === 1 ? 'una premisa sea falsa' : falsas.length + ' premisas sean falsas'} para que toda la condición lo sea. Y ojo con lo que esto significa: la regla <b>no dice</b> que la persona no pueda votar — simplemente no dice nada sobre este caso. Para resolverlo hacen falta otras reglas, que es justo por lo que el ejemplo de clase trae además una Regla 2 y una Regla 3.`;
+  pintar2();
+}
+
+// ============ 2. Y, O, NO ============
+function evaluar(a, b, con) { return con === 'y' ? (a && b) : con === 'o' ? (a || b) : (a && !b); }
+function pintar2() {
+  const con = $('conector').value, A = H1[0].v, B = H1[2].v;
+  const etiqueta = { y: 'A y B', o: 'A o B', yno: 'A y no B' }[con];
+  const filas = [[true, true], [true, false], [false, true], [false, false]].map(([a, b]) => {
+    const act = (a === A && b === B) ? ' class="act"' : '';
+    const r = evaluar(a, b, con);
+    return `<tr${act}><td>${VF(a)}</td><td>${VF(b)}</td><td style="color:${r ? 'var(--ok)' : 'var(--rojo)'};font-weight:700">${VF(r)}</td></tr>`;
+  }).join('');
+  $('tabla').innerHTML = `<tr><th>A</th><th>B</th><th>${esc(etiqueta)}</th></tr>${filas}`;
+  const r = evaluar(A, B, con), m = $('msg2'); m.className = 'mensaje ' + (r ? 'si' : 'no');
+  const explica = { y: 'Con <b>«y»</b> hacen falta las dos: una sola premisa falsa tumba la condición. De las cuatro combinaciones posibles, solo una la cumple.',
+    o: 'Con <b>«o»</b> basta con una: la condición solo es falsa cuando fallan las dos. Tres de las cuatro combinaciones la cumplen.',
+    yno: 'Con <b>«y no»</b> se exige la primera y se excluye la segunda: es la forma de escribir una excepción. Solo una combinación la cumple, y no es la misma que con «y».' }[con];
+  m.innerHTML = `${explica} Con los hechos de arriba (A ${VF(A)}, B ${VF(B)}), la condición es <b>${VF(r)}</b>.`;
+}
+
+// ============ 3. Una cadena de reglas ============
+// Reglas de culpabilidad del ejemplo de clase, puestas en fila, más una regla general añadida.
+let pruebas = 'insuficientes';   // contundentes | insuficientes | indeterminadas
+const H3 = [
+  { id: 'coar', txt: 'La coartada es sólida', v: false },
+  { id: 'test', txt: 'Los testigos son confiables', v: true },
+];
+const hecho3 = id => H3.find(h => h.id === id).v;
+const REGLAS3 = [
+  { si: 'las pruebas son contundentes', f: () => pruebas === 'contundentes', r: 'Culpable' },
+  { si: 'las pruebas son insuficientes y la coartada es sólida', f: () => pruebas === 'insuficientes' && hecho3('coar'), r: 'Inocente' },
+  { si: 'las pruebas son insuficientes, la coartada no es sólida y los testigos son confiables', f: () => pruebas === 'insuficientes' && !hecho3('coar') && hecho3('test'), r: 'Inocente' },
+  { si: 'las pruebas son insuficientes, la coartada no es sólida y los testigos no son confiables', f: () => pruebas === 'insuficientes' && !hecho3('coar') && !hecho3('test'), r: 'Culpable' },
+  { si: 'las pruebas no permiten determinar la culpabilidad', f: () => pruebas === 'indeterminadas', r: 'No se pudo determinar' },
+  { si: 'las pruebas son insuficientes', f: () => pruebas === 'insuficientes', r: 'Inocente', nueva: true },
+];
+let orden3 = REGLAS3.map((_, i) => i);
+function pintar3() {
+  let ganadora = -1;
+  const estado = orden3.map((ri, pos) => {
+    if (ganadora >= 0) return 'nomirada';
+    if (REGLAS3[ri].f()) { ganadora = pos; return 'gana'; }
+    return 'descartada';
+  });
+  $('lista3').innerHTML = orden3.map((ri, pos) => {
+    const R = REGLAS3[ri], e = estado[pos];
+    const etq = e === 'gana' ? '<span class="etq gana">se aplica</span>'
+      : e === 'descartada' ? '<span class="etq no">no se cumple</span>'
+      : '<span class="etq no">ni se mira</span>';
+    return `<div class="item ${e}"><span class="n">${pos + 1}</span><span class="cuerpo">` +
+      `<b>SI</b> ${esc(R.si)} <b>ENTONCES</b> la culpabilidad es «${esc(R.r)}»` +
+      (R.nueva ? '<span class="etq nueva">regla general añadida</span>' : '') + etq +
+      `</span><span class="mover"><button data-p="${pos}" data-d="-1"${pos === 0 ? ' disabled' : ''}>▲</button>` +
+      `<button data-p="${pos}" data-d="1"${pos === orden3.length - 1 ? ' disabled' : ''}>▼</button></span></div>`;
+  }).join('');
+  $('lista3').querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+    const p = +b.dataset.p, q = p + (+b.dataset.d);
+    [orden3[p], orden3[q]] = [orden3[q], orden3[p]]; pintar3();
+  }));
+  const m = $('msg3'), gi = ganadora >= 0 ? orden3[ganadora] : -1;
+  if (gi < 0) { m.className = 'mensaje'; m.innerHTML = '<b>Ninguna regla se cumple:</b> el sistema no responde nada. Un conjunto de reglas solo cubre los casos que alguien previó.'; }
+  else {
+    const R = REGLAS3[gi], tapadas = orden3.slice(ganadora + 1).filter(ri => REGLAS3[ri].f()).length;
+    m.className = 'mensaje ' + (R.nueva ? 'no' : 'si');
+    m.innerHTML = `<b>Gana la regla ${ganadora + 1}</b> y el resultado es «${esc(R.r)}».` +
+      (R.nueva ? ' Esa es la regla <b>general</b>: colocada aquí arriba se traga a las especiales y las vuelve letra muerta. Bájela al último lugar y vea cómo vuelven a decidir las demás.'
+        : tapadas ? ` Más abajo hay ${tapadas === 1 ? 'otra regla que también se cumpliría' : tapadas + ' reglas que también se cumplirían'}, pero ya no se miran: en una cadena solo manda la primera.`
+          : ' Ninguna de las de abajo se cumpliría con estos hechos, así que el orden no cambia el resultado… por ahora. Suba la regla general al primer lugar y vuelva a mirar.');
+  }
+}
+
+// ============ 4. ELIZA como condicionales ============
+// Reglas tomadas de eliza.html, con su rango, escritas como condicionales explícitos.
+const REGLAS4 = [
+  { rango: 50, claves: ['computadora', 'computador', 'máquina', 'robot', 'chatgpt'], r: '¿Te preocupan las computadoras?' },
+  { rango: 10, claves: ['abogado', 'juez', 'ley', 'demanda', 'contrato', 'tribunal'], r: '¿Qué papel tiene la ley en lo que me cuentas?' },
+  { rango: 3, claves: ['estoy'], r: '¿Cuánto tiempo llevas así?' },
+  { rango: 2, claves: ['mi', 'mis'], r: '¿Por qué dices que es tuyo?' },
+  { rango: 0, claves: ['*'], r: 'Cuénteme más.', generica: true },
+];
+function pintar4() {
+  const texto = $('frase').value.toLowerCase();
+  const palabras = texto.match(/\p{L}+/gu) || [];
+  let ganadora = -1;
+  const halladas = REGLAS4.map((R, i) => {
+    const hit = R.generica ? null : R.claves.find(c => palabras.includes(c));
+    if ((hit || R.generica) && ganadora < 0) ganadora = i;
+    return hit;
+  });
+  $('lista4').innerHTML = REGLAS4.map((R, i) => {
+    const e = i === ganadora ? 'gana' : (i < ganadora ? 'descartada' : 'nomirada');
+    const cond = R.generica ? 'no se cumplió ninguna de las anteriores'
+      : 'el texto contiene ' + R.claves.map(c => halladas[i] === c ? `<mark>«${esc(c)}»</mark>` : `«${esc(c)}»`).join(' o ');
+    return `<div class="item ${e}"><span class="n">${i + 1}</span><span class="cuerpo">` +
+      `<b>SI</b> ${cond} <b>ENTONCES</b> responder «${esc(R.r)}»` +
+      `<span class="etq rango">rango ${R.rango}</span>` +
+      (i === ganadora ? '<span class="etq gana">se dispara</span>'
+        : i < ganadora ? '<span class="etq no">no se cumple</span>'
+          : halladas[i] ? '<span class="etq nueva">también se cumple, pero ya no se mira</span>'
+            : '<span class="etq no">ni se mira</span>') +
+      `</span></div>`;
+  }).join('');
+  const R = REGLAS4[ganadora];
+  $('salida4').innerHTML = `<b>ELIZA responde:</b> ${esc(R.r)}<br>` +
+    (R.generica
+      ? '<span class="sem">Ninguna palabra clave apareció, así que cayó en la respuesta de relleno: lo que Weizenbaum llamó una «observación libre de contenido».</span>'
+      : `<span class="sem">Se disparó por la palabra «${esc(halladas[ganadora])}», y nada más. Cambie esa palabra por otra y la respuesta cambia; cambie todo lo demás y la respuesta sigue igual.` +
+      (halladas.some((h, i) => h && i > ganadora) ? ' Las reglas marcadas más abajo también se cumplían, pero tienen menos rango y ni se miraron.' : '') + '</span>');
+}
+
+// ---- arranque ----
+pintarHechos($('hechos1'), H1, pintar1);
+pintarHechos($('hechos3'), H3, pintar3);
+$('conector').addEventListener('change', pintar2);
+$('pruebas').addEventListener('change', () => { pruebas = $('pruebas').value; pintar3(); });
+$('reset3').addEventListener('click', () => { orden3 = REGLAS3.map((_, i) => i); pintar3(); });
+$('responder').addEventListener('click', pintar4);
+$('frase').addEventListener('keydown', e => { if (e.key === 'Enter') pintar4(); });
+pintar1(); pintar3(); pintar4();
+</script>
+</body>
+</html>
