@@ -1,0 +1,6 @@
+# macOS
+.DS_Store
+# Jupyter: copias automáticas, no deben publicarse
+.ipynb_checkpoints/
+# Entorno virtual de Python
+.venv/
