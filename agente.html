@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Un agente por dentro — ejemplo interactivo</title>
+<style>
+  :root { --verde:#18453B; --verde-claro:#e8f0ee; --azul:#1f6fb2; --rojo:#c0392b; --ambar:#e0a800; --ok:#2e8b57; --morado:#8e44ad; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; color:#222; background:#f6f8f7; }
+  header { background:var(--verde); color:#fff; padding:14px 24px; }
+  header h1 { margin:0; font-size:1.5rem; font-weight:600; }
+  header p { margin:4px 0 0; opacity:.85; }
+  main { display:flex; flex-wrap:wrap; gap:20px; padding:20px; max-width:1350px; margin:auto; }
+  .col { flex:1 1 540px; display:flex; flex-direction:column; gap:14px; min-width:0; }
+  .col.angosta { flex:1 1 380px; }
+  .tarjeta { background:#fff; border-radius:10px; padding:14px 16px; box-shadow:0 1px 4px rgba(0,0,0,.1); }
+  .tarjeta h2 { margin:0 0 8px; font-size:1rem; color:var(--verde); }
+  .pista { font-size:.85rem; color:#555; margin:6px 0 0; line-height:1.4; }
+  .fila { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:10px; }
+  button { border:1px solid var(--verde); background:#fff; color:var(--verde); padding:8px 12px; border-radius:6px; font-size:.9rem; cursor:pointer; font-family:inherit; }
+  button:hover:not(:disabled) { background:var(--verde); color:#fff; }
+  button.principal { background:var(--verde); color:#fff; }
+  button.rojo { border-color:var(--rojo); color:var(--rojo); }
+  button.rojo:hover:not(:disabled) { background:var(--rojo); color:#fff; }
+  button:disabled { opacity:.35; cursor:default; }
+  select { padding:7px; font-size:.9rem; border:1px solid #ccc; border-radius:6px; max-width:100%; font-family:inherit; }
+  input[type=range] { flex:1; min-width:120px; accent-color:var(--verde); }
+  .mensaje { background:#fff6e0; border-left:4px solid var(--ambar); padding:9px 12px; border-radius:0 8px 8px 0; margin-top:10px; font-size:.92rem; line-height:1.45; }
+  .mensaje.si { background:#e3f4e8; border-color:var(--ok); }
+  .mensaje.no { background:#fdecea; border-color:var(--rojo); }
+  .nota { border-left:4px solid var(--ambar); }
+  .reto { background:#fff6e0; border-left:4px solid var(--ambar); }
+  .encargo { background:var(--verde-claro); border-radius:8px; padding:10px 12px; line-height:1.45; font-size:.95rem; }
+
+  /* el entorno: interruptores grandes, legibles desde el fondo del salón */
+  .hecho { display:flex; align-items:center; gap:10px; padding:5px 0; font-size:.93rem; }
+  .hecho .txt { flex:1; min-width:0; }
+  .hecho select, .hecho button { min-width:150px; }
+
+  /* herramientas y memoria */
+  .herr { display:flex; gap:8px; align-items:baseline; padding:5px 8px; border-radius:6px; font-size:.88rem; border:1px solid #eee; margin-bottom:4px; }
+  .herr code { font-weight:700; color:var(--azul); }
+  .herr .usos { margin-left:auto; font-size:.75rem; color:#777; white-space:nowrap; }
+  .herr.activa { border-color:var(--azul); background:#eaf2fa; }
+  .herr.humana code { color:var(--morado); }
+  .mem { font-size:.88rem; line-height:1.5; margin:0; padding-left:18px; }
+  .mem li.nueva { animation:brillo 1.2s ease-out; }
+  @keyframes brillo { from { background:#ffe58a; } to { background:transparent; } }
+  .vacio { color:#999; font-size:.88rem; font-style:italic; }
+
+  /* la traza del agente */
+  .contador { font-size:.85rem; color:#555; margin-left:auto; }
+  .paso { border:1px solid #e3e3e3; border-radius:8px; padding:8px 10px; margin-top:8px; font-size:.9rem; line-height:1.45; }
+  .paso .n { font-size:.72rem; color:#888; text-transform:uppercase; letter-spacing:.04em; }
+  .paso .pens { color:#333; }
+  .paso .pens::before { content:"Piensa: "; font-weight:700; color:var(--morado); }
+  .paso .acc { margin-top:4px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.83rem; color:var(--azul); }
+  .paso .acc::before { content:"Actúa → "; font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; font-weight:700; color:var(--azul); }
+  .paso .obs { margin-top:4px; background:#f7f7f7; border-radius:6px; padding:6px 8px; font-size:.86rem; }
+  .paso .obs::before { content:"Observa: "; font-weight:700; color:var(--ok); }
+  .paso.ultimo { border-color:var(--azul); box-shadow:0 0 0 2px #d6e6f5; }
+  .paso.final { border-color:var(--ok); background:#eef8f1; }
+  .paso.alto { border-color:var(--rojo); background:#fdecea; }
+  .paso.espera { border-color:var(--morado); background:#f7f0fa; }
+  .correo { background:#fff; border:1px dashed #bbb; border-radius:6px; padding:8px 10px; margin-top:6px; white-space:pre-line; font-size:.86rem; }
+
+  /* el cómputo, día por día */
+  .dias { display:flex; flex-wrap:wrap; gap:4px; margin-top:6px; }
+  .dia { font-size:.74rem; border-radius:4px; padding:2px 5px; background:var(--verde-claro); color:var(--verde); white-space:nowrap; }
+  .dia b { font-weight:700; }
+  .dia.fest { background:#fdecea; color:var(--rojo); text-decoration:line-through; }
+  .dia.vence { background:var(--verde); color:#fff; }
+
+  /* flujo de trabajo */
+  .fijo { display:flex; gap:8px; align-items:flex-start; padding:7px 9px; border-radius:7px; border:1px solid #eee; margin-top:6px; font-size:.9rem; line-height:1.4; }
+  .fijo .n { width:1.4em; color:#888; font-weight:700; flex:none; }
+  .fijo.ok { border-color:var(--ok); background:#eef8f1; }
+  .fijo.error { border-color:var(--rojo); background:#fdecea; }
+  .fijo.nomirada { color:#bbb; }
+  .fuentes { font-size:.8rem; color:#555; line-height:1.5; margin:0; padding-left:18px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Un agente por dentro: piensa, actúa, observa</h1>
+  <p>El mismo modelo de lenguaje, con herramientas, memoria y un bucle: él decide qué hacer en cada paso.</p>
+</header>
+<main>
+  <div class="col angosta">
+    <div class="tarjeta">
+      <h2>El encargo</h2>
+      <div class="encargo">«Revise el expediente del proceso verbal de <b>Inversiones Andina S.A.S.</b> contra nuestro cliente, <b>Luis Pérez</b> (rad. 2026-00418): ¿hasta cuándo tenemos para contestar la demanda? Avísele al cliente por correo.»</div>
+      <div class="pista">Eso es todo lo que recibe el agente. Nadie le dice qué documentos leer, en qué orden, ni qué normas consultar.</div>
+    </div>
+
+    <div class="tarjeta">
+      <h2>El entorno y los controles</h2>
+      <div class="hecho"><span class="txt">En el expediente, la constancia de envío de la notificación…</span>
+        <select id="constancia"><option value="si">está</option><option value="no">no está</option></select></div>
+      <div class="hecho"><span class="txt">El modelo, en esta ejecución…</span>
+        <select id="modelo"><option value="cuidadoso">consulta los festivos</option><option value="descuidado">se salta los festivos</option></select></div>
+      <div class="hecho"><span class="txt">Antes de enviar el correo, pedir aprobación a una persona</span>
+        <select id="control"><option value="si">sí</option><option value="no">no</option></select></div>
+      <div class="hecho"><span class="txt">Condición de parada: máximo <b id="maxv">15</b> acciones</span>
+        <input type="range" id="max" min="3" max="20" value="15"></div>
+      <div class="pista">Cambiar cualquier control vuelve a empezar. «Se salta los festivos» simula un modelo que, en una ejecución cualquiera, decide no usar una herramienta que tenía a mano: es el tipo de error que no se ve en la respuesta final.</div>
+    </div>
+
+    <div class="tarjeta">
+      <h2>Sus herramientas</h2>
+      <div id="herramientas"></div>
+      <div class="pista">Las herramientas hacen el trabajo exacto: buscar, leer, contar días. El modelo solo decide <b>cuál</b> usar y <b>con qué datos</b>. Es el «modelo aumentado» de la diapositiva.</div>
+    </div>
+
+    <div class="tarjeta">
+      <h2>Su memoria</h2>
+      <ul class="mem" id="memoria"></ul>
+      <div class="pista">Lo que el agente decide anotar para los pasos siguientes. Lo que no anota, lo olvida.</div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="tarjeta">
+      <h2>Lo que hace el agente, paso a paso</h2>
+      <div class="fila" style="margin-top:0">
+        <button class="principal" id="siguiente">Siguiente paso</button>
+        <button id="todo">Ejecutar hasta que se detenga</button>
+        <button id="reiniciar">Reiniciar</button>
+        <span class="contador" id="contador"></span>
+      </div>
+      <div id="traza"></div>
+      <div id="humano"></div>
+      <div class="mensaje" id="msg"></div>
+    </div>
+
+    <div class="tarjeta">
+      <h2>El mismo encargo, como flujo de trabajo</h2>
+      <div class="pista" style="margin:0 0 4px">Aquí los pasos los escribió una persona, de antemano, y se repiten igual en cada ejecución. Usa el mismo entorno de la izquierda.</div>
+      <div id="flujo"></div>
+      <div class="mensaje" id="msgflujo"></div>
+    </div>
+
+    <div class="tarjeta nota">
+      <h2>¿Qué observar?</h2>
+      <ul style="margin:0; padding-left:20px; line-height:1.55">
+        <li>Cada paso tiene la misma forma: el modelo <b>piensa</b> qué le falta, <b>actúa</b> llamando una herramienta y <b>observa</b> lo que le devolvió el entorno. Es el ReAct que vimos en las estrategias de consulta, convertido en un bucle que el modelo corre solo.</li>
+        <li>Quite la constancia del expediente: el agente <b>cambia de camino</b> y le pregunta a usted. El flujo de trabajo no puede: no tiene escrito un paso para eso, y se detiene con un error. Esa es la diferencia entre los dos: quién decide los pasos.</li>
+        <li>Con el expediente completo, el flujo de trabajo llega a la misma fecha con <b>menos acciones</b>. Si el procedimiento se puede escribir, no hace falta un agente.</li>
+        <li>Ponga «se salta los festivos»: el correo sale igual de seguro, bien redactado, y con la fecha equivocada. El error de un paso <b>se arrastra</b> a todos los que siguen. Solo lo detecta quien revisa el cómputo en el punto de control.</li>
+        <li>Quite la aprobación humana con el modelo descuidado: el error llega al cliente sin que nadie lo vea.</li>
+        <li>Baje el máximo de acciones a 5: el agente se detiene sin terminar. La condición de parada evita que gire sin fin, pero un agente detenido a medias tampoco le sirve a nadie si no avisa en qué quedó.</li>
+      </ul>
+    </div>
+
+    <div class="tarjeta">
+      <h2>Sobre este ejemplo</h2>
+      <p class="pista" style="margin-top:0">Aquí <b>no hay un modelo de lenguaje</b>: lo que «piensa» el agente está escrito de antemano para que se pueda ver. En un agente real, cada pensamiento y cada elección de herramienta los produce el modelo, y pueden cambiar de una ejecución a otra con el mismo encargo. Las herramientas sí calculan de verdad: el conteo de días se hace en su navegador.</p>
+      <p class="pista">El caso es inventado y el cómputo es didáctico: supone que el juzgado no cerró ningún día distinto de los festivos y que no hubo recursos ni suspensiones. Verifique siempre la norma vigente.</p>
+      <ul class="fuentes">
+        <li>Ley 2213 de 2022, art. 8: la notificación personal por mensaje de datos «se entenderá realizada una vez transcurridos dos días hábiles siguientes al envío del mensaje y los términos empezarán a contarse cuando el iniciador recepcione acuse de recibo».</li>
+        <li>Código General del Proceso, art. 118: el término corre «a partir del día siguiente al de la notificación», y en los términos de días no se cuentan los de vacancia judicial ni aquellos en que el juzgado permanezca cerrado.</li>
+        <li>Código General del Proceso, art. 369: en el proceso verbal, «admitida la demanda se correrá traslado al demandado por el término de veinte (20) días».</li>
+        <li>Festivos de 2026 en el período: lunes 2 de noviembre (Todos los Santos) y lunes 16 de noviembre (Independencia de Cartagena), trasladados al lunes por la Ley 51 de 1983.</li>
+      </ul>
+    </div>
+    <div class="tarjeta reto"><b>Siga aquí:</b> el modelo que decide cada paso es el mismo que predice la palabra siguiente. Véalo <a href="transformer.html">entrenarse en su navegador</a>.</div>
+  </div>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+// ============ Fechas ============
+// Todo con fechas locales (año, mes, día) para que el día de la semana no cambie con la zona horaria del celular.
+const D = (y, m, d) => new Date(y, m - 1, d);
+const clave = f => `${f.getFullYear()}-${f.getMonth() + 1}-${f.getDate()}`;
+const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+const DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+const larga = f => `${DIAS[f.getDay()]} ${f.getDate()} de ${MESES[f.getMonth()]} de ${f.getFullYear()}`;
+const corta = f => `${DIAS[f.getDay()].slice(0, 3)} ${f.getDate()} ${MESES[f.getMonth()].slice(0, 3)}`;
+const masUno = f => D(f.getFullYear(), f.getMonth() + 1, f.getDate() + 1);
+
+const FESTIVOS = [
+  { f: D(2026, 11, 2), n: 'Todos los Santos' },
+  { f: D(2026, 11, 16), n: 'Independencia de Cartagena' },
+  { f: D(2026, 12, 8), n: 'Inmaculada Concepción' },
+];
+const AUTO = D(2026, 10, 26), ENVIO = D(2026, 10, 28);
+
+// Cuenta el término: la notificación se entiende hecha a los 2 días hábiles del envío,
+// y los 20 días corren desde el día hábil siguiente. Devuelve el detalle para mostrarlo.
+function computar(envio, festivos) {
+  const fest = new Set(festivos.map(x => clave(x.f)));
+  const habil = f => f.getDay() !== 0 && f.getDay() !== 6 && !fest.has(clave(f));
+  let f = envio, n = 0;
+  while (n < 2) { f = masUno(f); if (habil(f)) n++; }
+  const notif = f, dias = [];
+  n = 0;
+  while (n < 20) {
+    f = masUno(f);
+    if (f.getDay() === 0 || f.getDay() === 6) continue;
+    if (fest.has(clave(f))) { dias.push({ f, fest: true }); continue; }
+    n++; dias.push({ f, n });
+  }
+  return { notif, inicio: dias.find(d => d.n === 1).f, vence: f, dias };
+}
+function pintarDias(c) {
+  return `<div class="dias">` + c.dias.map(d => d.fest
+    ? `<span class="dia fest" title="festivo">${corta(d.f)}</span>`
+    : `<span class="dia${d.n === 20 ? ' vence' : ''}"><b>${d.n}</b> · ${corta(d.f)}</span>`).join('') + `</div>`;
+}
+
+// ============ Herramientas ============
+const HERR = [
+  { id: 'buscar_expediente', d: 'lista los documentos de un proceso' },
+  { id: 'leer_documento', d: 'devuelve el texto de un documento' },
+  { id: 'consultar_norma', d: 'devuelve el texto vigente de un artículo' },
+  { id: 'consultar_calendario', d: 'festivos y días de cierre del juzgado' },
+  { id: 'calcular_plazo', d: 'cuenta días hábiles a partir de una fecha' },
+  { id: 'redactar_correo', d: 'prepara un borrador' },
+  { id: 'enviar_correo', d: 'envía un correo al cliente' },
+  { id: 'preguntar_al_abogado', d: 'detiene el trabajo y le pregunta a usted', humana: true },
+];
+
+// ============ El agente ============
+// Lo que el agente hace en cada paso está escrito aquí, como reglas sobre lo que ya sabe.
+// En un agente real, esta función es el modelo de lenguaje: lee todo lo anterior y decide.
+let S;
+function reiniciar() {
+  S = {
+    pasos: [], acciones: 0, usos: {}, memoria: [], nuevaMem: -1, fin: null, espera: null,
+    sabe: {}, revisado: false, festivosVistos: false,
+  };
+  pintar();
+}
+const opc = () => ({ constancia: $('constancia').value === 'si', cuidadoso: $('modelo').value === 'cuidadoso',
+  control: $('control').value === 'si', max: +$('max').value });
+// Una nota nueva reemplaza a la anterior del mismo tipo (por ejemplo, al volver a contar el plazo).
+function anotar(t, tipo) {
+  if (tipo) S.memoria = S.memoria.filter(m => m.tipo !== tipo);
+  S.memoria.push({ t, tipo }); S.nuevaMem = S.memoria.length - 1;
+}
+
+function decidir() {
+  const o = opc(), k = S.sabe;
+  if (!k.lista) return {
+    pens: 'Para saber hasta cuándo hay plazo necesito saber cuándo y cómo se notificó la demanda. Empiezo por ver qué hay en el expediente.',
+    herr: 'buscar_expediente', args: '"2026-00418"',
+    obs: () => {
+      k.lista = true;
+      return 'Documentos: (1) demanda, (2) auto admisorio de 26 oct. 2026' + (o.constancia ? ', (3) constancia de envío de la notificación por correo electrónico.' : '. No hay más documentos.');
+    },
+  };
+  if (!k.auto) return {
+    pens: 'El auto admisorio debe decir qué tipo de proceso es y qué término se le dio al demandado.',
+    herr: 'leer_documento', args: '"auto admisorio"',
+    obs: () => {
+      k.auto = true; anotar('Proceso verbal: traslado de 20 días (CGP, art. 369).');
+      return '«…ADMÍTASE la demanda verbal… Córrase traslado al demandado por el término de veinte (20) días. Notifíquese personalmente conforme al artículo 8 de la Ley 2213 de 2022.»';
+    },
+  };
+  if (!k.envio && o.constancia) return {
+    pens: 'El auto ordena notificar por mensaje de datos. La fecha que cuenta es la del envío del correo: la busco en la constancia.',
+    herr: 'leer_documento', args: '"constancia de envío"',
+    obs: () => {
+      k.envio = true; anotar('Correo de notificación enviado el ' + larga(ENVIO) + ', con acuse de recibo del mismo día.');
+      return 'Mensaje enviado a luis.perez@correo.co el 28/10/2026 a las 10:14 con el auto admisorio, la demanda y sus anexos. Acuse de recibo: 28/10/2026, 10:15.';
+    },
+  };
+  if (!k.envio && !o.constancia) return {
+    pens: 'No encuentro la constancia de notificación. Sin la fecha de envío no sé desde cuándo corre el término, y suponerla sería peligroso: la fecha del auto no sirve. Me detengo y pregunto.',
+    herr: 'preguntar_al_abogado', args: '"¿Cuándo se envió la notificación al cliente, y hubo acuse de recibo?"',
+    pausa: 'dato',
+  };
+  if (!k.norma) return {
+    pens: 'Tengo la fecha de envío. Necesito la regla exacta de cuándo se entiende hecha la notificación por correo.',
+    herr: 'consultar_norma', args: '"Ley 2213 de 2022, art. 8"',
+    obs: () => {
+      k.norma = true; anotar('Notificación hecha a los 2 días hábiles del envío; el término corre desde el día siguiente (CGP, art. 118).');
+      return '«La notificación personal se entenderá realizada una vez transcurridos dos días hábiles siguientes al envío del mensaje y los términos empezarán a contarse cuando el iniciador recepcione acuse de recibo…»';
+    },
+  };
+  if (!k.fest && (o.cuidadoso || S.revisado)) return {
+    pens: S.revisado ? (S.festivosVistos ? 'Ya había descontado el 2 y el 16 de noviembre, pero la revisión pide confirmarlo. Vuelvo a consultar el calendario y a contar.'
+        : 'La revisión dice que el cómputo no tuvo en cuenta los festivos. Consulto el calendario y vuelvo a contar.')
+      : 'Los términos se cuentan en días hábiles: antes de contar, reviso qué días no corren.',
+    herr: 'consultar_calendario', args: '"juzgado, oct.–dic. 2026"',
+    obs: () => {
+      k.fest = true; k.calc = null; k.borrador = null; S.festivosVistos = true;
+      anotar('Festivos: ' + FESTIVOS.map(x => corta(x.f) + ' (' + x.n + ')').join(', ') + '.', 'festivos');
+      return 'Días sin servicio: ' + FESTIVOS.map(x => larga(x.f) + ', ' + x.n).join('; ') + '. Vacancia judicial desde el 20 de diciembre.';
+    },
+  };
+  if (!k.calc) return {
+    pens: k.fest ? 'Ya tengo todo: fecha de envío, regla de notificación, término de 20 días y festivos. Cuento.'
+      : 'Ya tengo la fecha de envío, la regla de notificación y el término de 20 días. Cuento de lunes a viernes.',
+    herr: 'calcular_plazo', args: `inicio="28/10/2026", notificación="+2 hábiles", término="20 hábiles", festivos=${k.fest ? '[2/11, 16/11, 8/12]' : '[]'}`,
+    obs: () => {
+      k.calc = computar(ENVIO, k.fest ? FESTIVOS : []);
+      anotar('El término vence el ' + larga(k.calc.vence) + '.', 'vence');
+      return `Notificación surtida el ${larga(k.calc.notif)}. El término corre desde el ${larga(k.calc.inicio)} y vence el <b>${larga(k.calc.vence)}</b>.` + pintarDias(k.calc);
+    },
+    html: true,
+  };
+  if (!k.borrador) return {
+    pens: 'Tengo la fecha. Ahora le escribo al cliente, en términos que entienda.',
+    herr: 'redactar_correo', args: '"Luis Pérez"',
+    obs: () => {
+      k.borrador = correo(k.calc);
+      return `Borrador listo:<div class="correo">${esc(k.borrador)}</div>`;
+    },
+    html: true,
+  };
+  if (o.control && !k.aprobado) return {
+    pens: 'Enviar un correo a un cliente es una acción que no se puede deshacer. Antes, pido aprobación.',
+    herr: 'preguntar_al_abogado', args: '"¿Apruebo el envío de este correo?"',
+    pausa: 'aprobacion',
+  };
+  if (!k.enviado) return {
+    pens: o.control ? 'El abogado aprobó. Envío.' : 'El correo está listo. Lo envío.',
+    herr: 'enviar_correo', args: '"luis.perez@correo.co"',
+    obs: () => { k.enviado = true; return 'Correo enviado a luis.perez@correo.co.'; },
+  };
+  return null;
+}
+function correo(c) {
+  return `Señor Pérez:\n\nLe confirmo que el plazo para contestar la demanda de Inversiones Andina S.A.S. vence el ${larga(c.vence)}. ` +
+    `Le pido que nos envíe a más tardar en una semana los documentos que tenga sobre el contrato, para preparar la contestación con tiempo.\n\nCordialmente,\nEl despacho`;
+}
+
+function paso() {
+  if (S.fin || S.espera) return false;
+  const o = opc(), d = decidir();
+  if (!d) {
+    const v = S.sabe.calc.vence, bien = S.festivosVistos;
+    S.pasos.push({ final: true, txt: `<b>Respuesta final:</b> el término para contestar vence el ${larga(v)}, y el cliente ya fue avisado.` +
+      (bien ? '' : ' <b>Pero la fecha está mal</b>: el agente nunca consultó los festivos, y el plazo real vence el ' + larga(computar(ENVIO, FESTIVOS).vence) + '. Esta vez el error cae del lado prudente; el mismo descuido en otro caso puede hacer que el plazo se venza.') });
+    S.fin = bien ? 'ok' : 'mal';
+    pintar(); return false;
+  }
+  if (S.acciones >= o.max) {
+    S.pasos.push({ alto: true, txt: `<b>Condición de parada:</b> llegó al máximo de ${o.max} acciones sin terminar. Iba a usar <code>${d.herr}</code>. Lo que queda está en su memoria, a la izquierda: alguien tiene que retomarlo.` });
+    S.fin = 'parada'; pintar(); return false;
+  }
+  S.acciones++; S.usos[d.herr] = (S.usos[d.herr] || 0) + 1; S.nuevaMem = -1;
+  const p = { pens: d.pens, herr: d.herr, args: d.args };
+  if (d.pausa) { p.espera = true; S.espera = d.pausa; }
+  else { const r = d.obs(); p.obs = d.html ? r : esc(r); }
+  S.pasos.push(p); pintar();
+  return !d.pausa;
+}
+
+// Las respuestas de la persona que está en el bucle
+function responder(cual) {
+  const k = S.sabe, ultimo = S.pasos[S.pasos.length - 1];
+  ultimo.espera = false;
+  if (cual === 'dato') {
+    k.envio = true; anotar('Según el abogado: correo de notificación enviado el ' + larga(ENVIO) + ', con acuse del mismo día.');
+    ultimo.obs = 'El abogado responde: «Se envió el 28 de octubre a las 10:14, y el cliente acusó recibo ese mismo día. Pida la constancia a secretaría.»';
+  } else if (cual === 'aprobar') {
+    k.aprobado = true; ultimo.obs = 'El abogado revisó el cómputo y aprobó el envío.';
+  } else if (cual === 'rechazar') {
+    S.revisado = true; k.fest = false;
+    ultimo.obs = S.festivosVistos ? 'El abogado rechaza: «Confirme los festivos y vuelva a contar.»'
+      : 'El abogado rechaza: «El 2 y el 16 de noviembre son festivos. Revise el calendario y vuelva a contar.»';
+  } else if (cual === 'abandonar') {
+    ultimo.obs = 'El abogado detiene el trabajo.'; S.fin = 'detenido';
+  }
+  S.espera = null; pintar();
+}
+
+// ============ Pintar ============
+let corriendo = null;
+function pintar() {
+  const o = opc();
+  $('maxv').textContent = o.max;
+  $('herramientas').innerHTML = HERR.map(h => {
+    const ult = S.pasos.length && S.pasos[S.pasos.length - 1].herr === h.id;
+    return `<div class="herr${ult ? ' activa' : ''}${h.humana ? ' humana' : ''}"><code>${h.id}</code><span>${h.d}</span>` +
+      `<span class="usos">${S.usos[h.id] ? S.usos[h.id] + (S.usos[h.id] === 1 ? ' uso' : ' usos') : ''}</span></div>`;
+  }).join('');
+  $('memoria').innerHTML = S.memoria.length
+    ? S.memoria.map((m, i) => `<li${i === S.nuevaMem ? ' class="nueva"' : ''}>${esc(m.t)}</li>`).join('')
+    : '<span class="vacio">Todavía vacía.</span>';
+  $('contador').textContent = `${S.acciones} de ${o.max} acciones`;
+
+  let n = 0;
+  $('traza').innerHTML = S.pasos.length ? S.pasos.map((p, i) => {
+    const ult = i === S.pasos.length - 1 ? ' ultimo' : '';
+    if (p.final) return `<div class="paso ${S.fin === 'ok' ? 'final' : 'alto'}">${p.txt}</div>`;
+    if (p.alto) return `<div class="paso alto">${p.txt}</div>`;
+    n++;
+    return `<div class="paso${p.espera ? ' espera' : ult}"><div class="n">Paso ${n}</div>` +
+      `<div class="pens">${esc(p.pens)}</div><div class="acc">${p.herr}(${esc(p.args)})</div>` +
+      (p.obs ? `<div class="obs">${p.obs}</div>` : '') + `</div>`;
+  }).join('') : '<p class="pista">Pulse «Siguiente paso» para ver qué decide hacer primero.</p>';
+
+  // el punto de control: lo que la persona tiene a la vista para decidir
+  const h = $('humano');
+  if (S.espera === 'dato') {
+    h.innerHTML = `<div class="mensaje"><b>El agente está esperando una respuesta suya.</b> Sin ese dato no puede seguir.` +
+      `<div class="fila"><button class="principal" data-r="dato">Darle la fecha de envío</button><button class="rojo" data-r="abandonar">Detener el trabajo</button></div></div>`;
+  } else if (S.espera === 'aprobacion') {
+    const c = S.sabe.calc;
+    h.innerHTML = `<div class="mensaje"><b>Punto de control: el agente pide su aprobación.</b> Antes de aprobar, revise el cómputo que hizo, día por día:` +
+      pintarDias(c) + `<div class="pista">¿Alguno de esos días era festivo? Si lo era, no debía contarse.</div>` +
+      `<div class="fila"><button class="principal" data-r="aprobar">Aprobar y enviar</button><button class="rojo" data-r="rechazar">Rechazar: revise los festivos</button></div></div>`;
+  } else h.innerHTML = '';
+  h.querySelectorAll('button').forEach(b => b.addEventListener('click', () => { responder(b.dataset.r); }));
+
+  const bloqueado = !!(S.fin || S.espera);
+  $('siguiente').disabled = bloqueado; $('todo').disabled = bloqueado;
+
+  const m = $('msg');
+  if (S.fin === 'ok') { m.className = 'mensaje si'; m.innerHTML = `<b>Terminó en ${S.acciones} acciones.</b> Nadie le dijo qué leer ni en qué orden: cada paso lo eligió a partir de lo que observó en el anterior. Compare con el flujo de trabajo de abajo.`; }
+  else if (S.fin === 'mal') { m.className = 'mensaje no'; m.innerHTML = `<b>El correo salió con una fecha equivocada</b>, y nada en la respuesta lo delata: está bien redactada y es segura. El error nació en un paso —no consultar el calendario— y se arrastró al cómputo, al borrador y al envío. ${o.control ? 'Usted lo aprobó en el punto de control: vuelva a intentarlo y mire los días antes de aprobar.' : 'Sin punto de control, nadie alcanzó a verlo. Active la aprobación humana y vuelva a intentarlo.'}`; }
+  else if (S.fin === 'parada') { m.className = 'mensaje no'; m.innerHTML = '<b>Se detuvo por la condición de parada.</b> Sirve para que un agente no gire sin fin, gastando dinero y tiempo. Pero aquí el límite era muy bajo para la tarea: suba el máximo y vuelva a empezar.'; }
+  else if (S.fin === 'detenido') { m.className = 'mensaje'; m.innerHTML = 'Usted detuvo el trabajo. Es una salida legítima: un agente que no tiene lo que necesita debe poder parar y entregar el control.'; }
+  else if (S.espera === 'aprobacion') { m.className = 'mensaje'; m.innerHTML = 'El agente no puede enviar nada sin usted. Lo que apruebe aquí es lo que le llega al cliente: el agente no sabe si se equivocó, y el correo se ve igual de bien en los dos casos.'; }
+  else if (S.espera === 'dato') { m.className = 'mensaje'; m.innerHTML = 'Aquí el agente <b>cambió de camino</b>: como no encontró la constancia, en lugar de leerla decidió preguntar. Ese paso no estaba previsto en ninguna lista.'; }
+  else { m.className = 'mensaje'; m.innerHTML = 'Cada paso tiene tres partes: lo que el modelo <b>piensa</b> que le falta, la herramienta con la que <b>actúa</b> y lo que <b>observa</b> en la respuesta. Lo observado decide el paso siguiente.'; }
+
+  pintarFlujo();
+}
+
+// ============ El flujo de trabajo ============
+// Los mismos cuatro pasos, siempre en el mismo orden. No hay decisiones.
+function pintarFlujo() {
+  const o = opc(), c = computar(ENVIO, FESTIVOS);
+  const P = [
+    { t: 'Buscar el expediente 2026-00418.', ok: 'Encontrado.' },
+    { t: 'Leer la fecha de envío en la constancia de notificación.', ok: o.constancia ? 'Envío: 28/10/2026.' : null, err: 'Error: no hay ningún documento llamado «constancia». El flujo se detiene.' },
+    { t: 'Contar 2 días hábiles más 20 días hábiles, descontando festivos.', ok: `Vence el ${larga(c.vence)}.` },
+    { t: 'Redactar el correo con la fecha y mandarlo a revisión antes de enviar.', ok: 'En la bandeja de revisión.' },
+  ];
+  let roto = false;
+  $('flujo').innerHTML = P.map((p, i) => {
+    if (roto) return `<div class="fijo nomirada"><span class="n">${i + 1}</span><span>${esc(p.t)}</span></div>`;
+    if (p.ok === null) { roto = true; return `<div class="fijo error"><span class="n">${i + 1}</span><span>${esc(p.t)}<br><b>${esc(p.err)}</b></span></div>`; }
+    return `<div class="fijo ok"><span class="n">${i + 1}</span><span>${esc(p.t)}<br><b>${esc(p.ok)}</b></span></div>`;
+  }).join('');
+  const m = $('msgflujo');
+  if (roto) { m.className = 'mensaje no'; m.innerHTML = '<b>El flujo se rompe</b>, pero de forma predecible y a la vista: falla siempre en el mismo paso y por la misma razón. No puede inventar un paso que nadie le escribió, como preguntarle a usted.'; }
+  else { m.className = 'mensaje si'; m.innerHTML = `<b>Cuatro pasos y la fecha correcta, siempre.</b> El cómputo de festivos no depende de que el modelo se acuerde: alguien lo escribió una vez, y usted puede auditarlo una vez. ${$('modelo').value === 'descuidado' ? 'Por eso el «modelo descuidado» no le afecta.' : ''}`; }
+}
+
+// ---- arranque ----
+$('siguiente').addEventListener('click', paso);
+$('todo').addEventListener('click', () => {
+  clearInterval(corriendo);
+  if (!paso()) return;
+  corriendo = setInterval(() => { if (!paso()) clearInterval(corriendo); }, 700);
+});
+$('reiniciar').addEventListener('click', () => { clearInterval(corriendo); reiniciar(); });
+['constancia', 'modelo', 'control'].forEach(id => $(id).addEventListener('change', () => { clearInterval(corriendo); reiniciar(); }));
+$('max').addEventListener('input', () => { clearInterval(corriendo); reiniciar(); });
+reiniciar();
+</script>
+</body>
+</html>
